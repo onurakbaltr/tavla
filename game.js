@@ -1447,8 +1447,8 @@
 
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const host = location.hostname || 'localhost';
-    const port = location.port || 8080;
-    const url = `${proto}://${host}:${port}`;
+    const port = location.port ? `:${location.port}` : '';
+    const url = `${proto}://${host}${port}`;
 
     ws = new WebSocket(url);
 
