@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <!-- 3D Spherical body gradient -->
+    <radialGradient id="sphereBody" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#F5F5F7"/>
+      <stop offset="45%" stop-color="#E8E8EC"/>
+      <stop offset="70%" stop-color="#C8C8D0"/>
+      <stop offset="90%" stop-color="#A8A8B8"/>
+      <stop offset="100%" stop-color="#9090A0"/>
+    </radialGradient>
+    
+    <!-- Rim lighting for edge definition -->
+    <linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.9)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(200,200,210,0.5)"/>
+    </linearGradient>
+    
+    <!-- Specular highlight (glossy reflection) -->
+    <radialGradient id="specular" cx="30%" cy="25%" r="35%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.95)"/>
+      <stop offset="30%" stop-color="rgba(255,255,255,0.4)"/>
+      <stop offset="60%" stop-color="rgba(255,255,255,0.1)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    
+    <!-- Soft drop shadow -->
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="2" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+      <feMerge> 
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/> 
+      </feMerge>
+    </filter>
+    
+    <!-- Inner depth shadow -->
+    <radialGradient id="innerShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="90%" stop-color="rgba(0,0,0,0.1)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.25)"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Main sphere with shadow -->
+  <circle cx="64" cy="66" r="54" fill="rgba(0,0,0,0.15)" filter="url(#softShadow)"/>
+  
+  <!-- 3D spherical body -->
+  <circle cx="64" cy="64" r="54" fill="url(#sphereBody)"/>
+  
+  <!-- Rim highlight -->
+  <circle cx="64" cy="64" r="52" fill="none" stroke="url(#rimLight)" stroke-width="2"/>
+  
+  <!-- Inner depth shadow at bottom -->
+  <circle cx="64" cy="64" r="54" fill="url(#innerShadow)"/>
+  
+  <!-- Specular highlight (glossy spot) -->
+  <ellipse cx="48" cy="44" rx="18" ry="14" fill="url(#specular)" transform="rotate(-20 48 44)"/>
+  
+  <!-- Secondary smaller highlight -->
+  <ellipse cx="75" cy="58" rx="8" ry="6" fill="rgba(255,255,255,0.4)" transform="rotate(-20 75 58)"/>
+</svg>

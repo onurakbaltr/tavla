@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavla — VS Bilgisayar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app" id="app">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand__title">Tavla</div>
+                <div class="brand__subtitle">VS Bilgisayar</div>
+            </div>
+            <div class="topbar__right">
+                <div class="status" id="statusText">Yükleniyor…</div>
+                <button class="btn btn--ghost" id="newGameBtn" type="button">Yeni oyun</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="boardWrap" aria-label="Tavla tahtası">
+                <div class="board" id="board">
+                    <img class="board__bg" src="assets/board.svg" alt="Tavla tahtası" draggable="false">
+                    <div class="board__overlay" id="boardOverlay" aria-hidden="true"></div>
+                </div>
+            </section>
+
+            <aside class="panel" aria-label="Kontroller">
+                <div class="card">
+                    <div class="card__title">Sıra</div>
+                    <div class="turnRow">
+                        <div class="pill" id="turnPill">—</div>
+                        <div class="pill pill--muted" id="phasePill">—</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card__title">Zar</div>
+                    <div class="diceRow" id="diceRow">
+                        <img class="die" id="dieA" src="assets/dice-1.svg" alt="zar" draggable="false">
+                        <img class="die" id="dieB" src="assets/dice-1.svg" alt="zar" draggable="false">
+                    </div>
+                    <div class="buttonRow">
+                        <button class="btn" id="rollBtn" type="button">At</button>
+                        <button class="btn btn--ghost" id="undoBtn" type="button">Geri al</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card__title">Oyun</div>
+                    <div class="kv">
+                        <div class="kv__k">Sen</div>
+                        <div class="kv__v" id="youLabel">Beyaz</div>
+                    </div>
+                    <div class="kv">
+                        <div class="kv__k" id="opponentLabel">Bilgisayar</div>
+                        <div class="kv__v" id="aiLabel">Siyah</div>
+                    </div>
+                    <div class="kv">
+                        <div class="kv__k">Yakalanan (çubuk)</div>
+                        <div class="kv__v" id="barText">W 0 — B 0</div>
+                    </div>
+                    <div class="kv">
+                        <div class="kv__k">Çıkarılan</div>
+                        <div class="kv__v" id="offText">W 0 — B 0</div>
+                    </div>
+                </div>
+
+                <div class="card card--hint">
+                    <div class="card__title">Kontroller</div>
+                    <div class="hint">
+                        Bir yığını seçmek için tıklayın, sonra vurgulanmış hedefe tıklayın.
+                        Diğer taşları hareket ettirmeden önce çubuktan girmelisiniz.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn--fullscreen" id="fullscreenBtn" type="button">Tam Ekran</button>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn--multiplayer" id="multiplayerBtn" type="button">Çok Oyunculu</button>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Multiplayer Modal -->
+        <div class="modal" id="multiplayerModal" role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="modal__card modal__card--multiplayer">
+                <div class="modal__title" id="multiplayerModalTitle">Çok Oyunculu Mod</div>
+                <div class="modal__body">
+                    <div class="multiplayer-section">
+                        <h3>Oda Oluştur</h3>
+                        <input type="text" id="playerNameInput" placeholder="İsminizi girin" maxlength="20">
+                        <button class="btn" id="createRoomBtn">Oda Oluştur</button>
+                    </div>
+
+                    <div class="multiplayer-section">
+                        <h3>Odaya Katıl</h3>
+                        <input type="text" id="roomCodeInput" placeholder="Oda kodunu girin" maxlength="2" pattern="\\d{2}" inputmode="numeric">
+                        <button class="btn" id="joinRoomBtn">Katıl</button>
+                    </div>
+
+                    <div class="multiplayer-section" id="roomInfo" style="display: none;">
+                        <h3>Oda Bilgileri</h3>
+                        <p>Oda Kodu: <span id="currentRoomCode"></span></p>
+                        <p>Rakip: <span id="opponentName">Bekleniyor...</span></p>
+                        <button class="btn" id="leaveRoomBtn">Odayı Terk Et</button>
+                    </div>
+                </div>
+                <div class="modal__actions">
+                    <button class="btn btn--secondary" id="multiplayerModalClose" onclick="document.getElementById('multiplayerModal').classList.remove('is-open'); document.getElementById('multiplayerModal').setAttribute('aria-hidden', 'true');">Kapat</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="modal__card">
+                <div class="modal__title" id="modalTitle">Oyun Bitti</div>
+                <div class="modal__body" id="modalBody">—</div>
+                <div class="modal__actions">
+                    <button class="btn" id="modalPrimaryBtn" type="button">Yeni oyun</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobil cihazlarda portre mod uyarısı -->
+    <div class="orientation-warning">
+        <div>
+            <div class="orientation-warning__icon">📱</div>
+            <div class="orientation-warning__title">Yatay Mod Gerekli</div>
+            <div class="orientation-warning__text">
+                Bu oyunu oynamak için lütfen cihazınızı yatay konuma çevirin.<br>
+                (Landscape mode required to play this game)
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

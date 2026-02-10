@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="640" viewBox="0 0 920 640">
+  <defs>
+    <!-- Wood grain texture filter -->
+    <filter id="woodGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.08" numOctaves="3" result="noise"/>
+      <feDiffuseLighting in="noise" lighting-color="#8B5A2B" surfaceScale="1" result="diffuse">
+        <feDistantLight azimuth="45" elevation="60"/>
+      </feDiffuseLighting>
+      <feBlend in="diffuse" in2="SourceGraphic" mode="multiply" result="wood"/>
+    </filter>
+    
+    <!-- 3D bevel and lighting for frame -->
+    <filter id="frame3D" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+      <feOffset in="blur" dx="3" dy="5" result="offsetBlur"/>
+      <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1" specularExponent="20" result="specOut">
+        <fePointLight x="-500" y="-500" z="200"/>
+      </feSpecularLighting>
+      <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut"/>
+      <feComposite in="SourceGraphic" in2="offsetBlur" operator="over" result="composite"/>
+      <feBlend in="specOut" in2="composite" mode="screen"/>
+    </filter>
+    
+    <!-- Deep shadow filter -->
+    <filter id="deepShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/>
+      <feOffset in="blur" dx="0" dy="15" result="offsetBlur"/>
+      <feComponentTransfer in="offsetBlur" result="shadow">
+        <feFuncA type="linear" slope="0.6"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Wood gradient with depth -->
+    <linearGradient id="woodFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5D3A1A"/>
+      <stop offset="30%" stop-color="#8B5A2B"/>
+      <stop offset="50%" stop-color="#654321"/>
+      <stop offset="70%" stop-color="#4A2C17"/>
+      <stop offset="100%" stop-color="#3D2314"/>
+    </linearGradient>
+    
+    <!-- Inner bevel gradient -->
+    <linearGradient id="innerBevel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6B4423"/>
+      <stop offset="20%" stop-color="#8B5A2B"/>
+      <stop offset="50%" stop-color="#5D3A1A"/>
+      <stop offset="80%" stop-color="#3D2314"/>
+      <stop offset="100%" stop-color="#2A1810"/>
+    </linearGradient>
+    
+    <!-- Premium felt with depth -->
+    <radialGradient id="feltSurface" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1A4A3E"/>
+      <stop offset="40%" stop-color="#0F3B33"/>
+      <stop offset="70%" stop-color="#0A2E28"/>
+      <stop offset="100%" stop-color="#061F1B"/>
+    </radialGradient>
+    
+    <!-- Lighting overlay -->
+    <radialGradient id="spotlight" cx="30%" cy="20%" r="80%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.03)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.1)"/>
+    </radialGradient>
+    
+    <!-- 3D Triangle gradients -->
+    <linearGradient id="triLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8C97A"/>
+      <stop offset="30%" stop-color="#D4A85C"/>
+      <stop offset="70%" stop-color="#B88A4A"/>
+      <stop offset="100%" stop-color="#9C6B35"/>
+    </linearGradient>
+    
+    <linearGradient id="triDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#A65D3B"/>
+      <stop offset="30%" stop-color="#8B4A2E"/>
+      <stop offset="70%" stop-color="#6B3A23"/>
+      <stop offset="100%" stop-color="#4A2818"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer frame with 3D effect and wood grain -->
+  <rect x="16" y="16" width="888" height="608" rx="32" fill="url(#woodFrame)" filter="url(#frame3D)"/>
+  <rect x="16" y="16" width="888" height="608" rx="32" fill="url(#woodFrame)" filter="url(#woodGrain)" opacity="0.6"/>
+  
+  <!-- Inner raised lip -->
+  <rect x="40" y="40" width="840" height="560" rx="22" fill="url(#innerBevel)" stroke="#2A1810" stroke-width="2"/>
+  
+  <!-- Felt playing surface with depth -->
+  <rect x="56" y="56" width="808" height="528" rx="16" fill="url(#feltSurface)"/>
+  
+  <!-- Center bar with 3D -->
+  <rect x="436" y="56" width="48" height="528" rx="12" fill="#0A1E1A" stroke="#051412" stroke-width="2"/>
+  <rect x="444" y="64" width="32" height="512" rx="8" fill="#0D2823"/>
+  
+  <!-- Lighting overlay on felt -->
+  <rect x="56" y="56" width="808" height="528" rx="16" fill="url(#spotlight)" pointer-events="none"/>
+  
+  <!-- Quarter marker subtle highlights -->
+  <g opacity="0.08">
+    <rect x="64" y="64" width="368" height="256" rx="12" fill="white"/>
+    <rect x="488" y="64" width="368" height="256" rx="12" fill="white"/>
+    <rect x="64" y="320" width="368" height="256" rx="12" fill="black"/>
+    <rect x="488" y="320" width="368" height="256" rx="12" fill="black"/>
+  </g>
+  
+  <!-- Triangles with 3D depth -->
+  <g filter="url(#deepShadow)">
+    <!-- Top Left -->
+    <g transform="translate(64 64)">
+      <g>
+        <path d="M0,0 L60,0 L30,230 Z" fill="url(#triLight)"/>
+        <path d="M60,0 L120,0 L90,230 Z" fill="url(#triDark)"/>
+        <path d="M120,0 L180,0 L150,230 Z" fill="url(#triLight)"/>
+        <path d="M180,0 L240,0 L210,230 Z" fill="url(#triDark)"/>
+        <path d="M240,0 L300,0 L270,230 Z" fill="url(#triLight)"/>
+        <path d="M300,0 L360,0 L330,230 Z" fill="url(#triDark)"/>
+      </g>
+    </g>
+    
+    <!-- Top Right -->
+    <g transform="translate(488 64)">
+      <g>
+        <path d="M0,0 L60,0 L30,230 Z" fill="url(#triDark)"/>
+        <path d="M60,0 L120,0 L90,230 Z" fill="url(#triLight)"/>
+        <path d="M120,0 L180,0 L150,230 Z" fill="url(#triDark)"/>
+        <path d="M180,0 L240,0 L210,230 Z" fill="url(#triLight)"/>
+        <path d="M240,0 L300,0 L270,230 Z" fill="url(#triDark)"/>
+        <path d="M300,0 L360,0 L330,230 Z" fill="url(#triLight)"/>
+      </g>
+    </g>
+    
+    <!-- Bottom Left (flipped) -->
+    <g transform="translate(64 576) scale(1 -1)">
+      <g>
+        <path d="M0,0 L60,0 L30,230 Z" fill="url(#triDark)"/>
+        <path d="M60,0 L120,0 L90,230 Z" fill="url(#triLight)"/>
+        <path d="M120,0 L180,0 L150,230 Z" fill="url(#triDark)"/>
+        <path d="M180,0 L240,0 L210,230 Z" fill="url(#triLight)"/>
+        <path d="M240,0 L300,0 L270,230 Z" fill="url(#triDark)"/>
+        <path d="M300,0 L360,0 L330,230 Z" fill="url(#triLight)"/>
+      </g>
+    </g>
+    
+    <!-- Bottom Right (flipped) -->
+    <g transform="translate(488 576) scale(1 -1)">
+      <g>
+        <path d="M0,0 L60,0 L30,230 Z" fill="url(#triLight)"/>
+        <path d="M60,0 L120,0 L90,230 Z" fill="url(#triDark)"/>
+        <path d="M120,0 L180,0 L150,230 Z" fill="url(#triLight)"/>
+        <path d="M180,0 L240,0 L210,230 Z" fill="url(#triDark)"/>
+        <path d="M240,0 L300,0 L270,230 Z" fill="url(#triLight)"/>
+        <path d="M300,0 L360,0 L330,230 Z" fill="url(#triDark)"/>
+      </g>
+    </g>
+  </g>
+  
+  <!-- Center divider highlight -->
+  <rect x="56" y="320" width="808" height="8" fill="rgba(255,255,255,0.06)"/>
+  
+  <!-- Inner glow border -->
+  <rect x="56" y="56" width="808" height="528" rx="16" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+</svg>

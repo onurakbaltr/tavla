@@ -1,0 +1,19 @@
+{
+  "name": "backgammon-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer Backgammon Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "keywords": ["backgammon", "multiplayer", "websocket", "game"],
+  "author": "",
+  "license": "MIT"
+}
