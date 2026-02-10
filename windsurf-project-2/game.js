@@ -641,6 +641,7 @@
     modalTitle: document.getElementById('modalTitle'),
     modalBody: document.getElementById('modalBody'),
     modalPrimaryBtn: document.getElementById('modalPrimaryBtn'),
+    fullscreenBtn: document.getElementById('fullscreenBtn'),
   };
 
   // Pre-create point elements (1..24)
@@ -1238,6 +1239,20 @@
 
   // ----- Wire up -----
 
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn('Failed to enter fullscreen:', err);
+      });
+      els.fullscreenBtn.textContent = 'Çıkış';
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.warn('Failed to exit fullscreen:', err);
+      });
+      els.fullscreenBtn.textContent = 'Tam Ekran';
+    }
+  }
+
   els.rollBtn.addEventListener('click', () => {
     if (state.phase !== Phase.NEED_ROLL) return;
     doRoll();
@@ -1254,6 +1269,8 @@
   els.modalPrimaryBtn.addEventListener('click', () => {
     newGame();
   });
+
+  els.fullscreenBtn.addEventListener('click', toggleFullscreen);
 
   // Initial paint
   layoutPoints();
