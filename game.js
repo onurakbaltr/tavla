@@ -1663,18 +1663,52 @@
   // ----- Wire up -----
 
   function toggleFullscreen() {
+    const doc = document.documentElement;
+    
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn('Failed to enter fullscreen:', err);
-      });
-      els.fullscreenBtn.textContent = 'Çıkış';
+      // Fullscreen'e gir
+      const request = doc.requestFullscreen || 
+                      doc.webkitRequestFullscreen || 
+                      doc.mozRequestFullScreen || 
+                      doc.msRequestFullscreen;
+      
+      if (request) {
+        request.call(doc).catch(err => {
+          console.warn('Failed to enter fullscreen:', err);
+        });
+      }
     } else {
-      document.exitFullscreen().catch(err => {
-        console.warn('Failed to exit fullscreen:', err);
-      });
-      els.fullscreenBtn.textContent = 'Tam Ekran';
+      // Fullscreen'den çık
+      const exit = document.exitFullscreen || 
+                   document.webkitExitFullscreen || 
+                   document.mozCancelFullScreen || 
+                   document.msExitFullscreen;
+      
+      if (exit) {
+        exit.call(document).catch(err => {
+          console.warn('Failed to exit fullscreen:', err);
+        });
+      }
     }
   }
+
+  // Fullscreen durumundaki değişiklikleri dinle
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      els.fullscreenBtn.textContent = 'Çıkış';
+    } else {
+      els.fullscreenBtn.textContent = 'Tam Ekran';
+    }
+  });
+  
+  // Webkit için fullscreen değişikliği
+  document.addEventListener('webkitfullscreenchange', () => {
+    if (document.webkitFullscreenElement) {
+      els.fullscreenBtn.textContent = 'Çıkış';
+    } else {
+      els.fullscreenBtn.textContent = 'Tam Ekran';
+    }
+  });
 
   els.rollBtn.addEventListener('click', () => {
     if (state.phase !== Phase.NEED_ROLL) return;
