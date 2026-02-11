@@ -3,21 +3,23 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tavla — VS Bilgisayar</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-CB3SQTMh.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-cVLmDFDU.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tavla — 3D Premium</title>
+    <meta name="description" content="Premium 3D Tavla oyunu - Bilgisayara karşı veya çok oyunculu mod">
+  <script type="module" crossorigin src="/assets/index-CPJFL7Qu.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D1GuiP2F.css">
 </head>
 
 <body>
+    <!-- 3D Canvas — Full screen, behind everything -->
+    <div id="board-container"></div>
+
+    <!-- UI Overlay -->
     <div class="app" id="app">
         <header class="topbar">
             <div class="brand">
                 <div class="brand__title">Tavla</div>
-                <div class="brand__subtitle">VS Bilgisayar</div>
+                <div class="brand__subtitle">3D Premium</div>
             </div>
             <div class="topbar__right">
                 <div class="status" id="statusText">Yükleniyor…</div>
@@ -26,13 +28,15 @@
         </header>
 
         <main class="main">
-            <section class="boardWrap" aria-label="Tavla tahtası">
+            <!-- Legacy 2D board section (hidden, kept for backwards compatibility) -->
+            <section class="boardWrap" aria-label="Tavla tahtası" aria-hidden="true">
                 <div class="board" id="board">
                     <img class="board__bg" src="/assets/board-DFaaA6ge.svg" alt="Tavla tahtası" draggable="false">
                     <div class="board__overlay" id="boardOverlay" aria-hidden="true"></div>
                 </div>
             </section>
 
+            <!-- Floating Side Panel -->
             <aside class="panel" aria-label="Kontroller">
                 <div class="card">
                     <div class="card__title">Sıra</div>
@@ -49,13 +53,13 @@
                         <img class="die" id="dieB" src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='128'%20height='128'%20viewBox='0%200%20128%20128'%3e%3cdefs%3e%3clinearGradient%20id='b'%20x1='0'%20x2='0'%20y1='0'%20y2='1'%3e%3cstop%20offset='0'%20stop-color='%23ffffff'/%3e%3cstop%20offset='1'%20stop-color='%23e5e7eb'/%3e%3c/linearGradient%3e%3c/defs%3e%3crect%20x='12'%20y='12'%20width='104'%20height='104'%20rx='22'%20fill='url(%23b)'%20stroke='%23ffffff'%20stroke-opacity='0.55'/%3e%3crect%20x='16'%20y='16'%20width='96'%20height='96'%20rx='20'%20fill='none'%20stroke='%230b1020'%20stroke-opacity='0.14'/%3e%3ccircle%20cx='64'%20cy='64'%20r='10'%20fill='%230b1020'%20fill-opacity='0.86'/%3e%3c/svg%3e" alt="zar" draggable="false">
                     </div>
                     <div class="buttonRow">
-                        <button class="btn" id="rollBtn" type="button">At</button>
-                        <button class="btn btn--ghost" id="undoBtn" type="button">Geri al</button>
+                        <button class="btn" id="rollBtn" type="button">🎲 Zar At</button>
+                        <button class="btn btn--ghost" id="undoBtn" type="button">↩ Geri</button>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card__title">Oyun</div>
+                    <div class="card__title">Skor</div>
                     <div class="kv">
                         <div class="kv__k">Sen</div>
                         <div class="kv__v" id="youLabel">Beyaz</div>
@@ -65,7 +69,7 @@
                         <div class="kv__v" id="aiLabel">Siyah</div>
                     </div>
                     <div class="kv">
-                        <div class="kv__k">Yakalanan (çubuk)</div>
+                        <div class="kv__k">Çubuk</div>
                         <div class="kv__v" id="barText">W 0 — B 0</div>
                     </div>
                     <div class="kv">
@@ -75,19 +79,17 @@
                 </div>
 
                 <div class="card card--hint">
-                    <div class="card__title">Kontroller</div>
                     <div class="hint">
-                        Bir yığını seçmek için tıklayın, sonra vurgulanmış hedefe tıklayın.
-                        Diğer taşları hareket ettirmeden önce çubuktan girmelisiniz.
+                        Taşı seçmek için tıklayın, sonra hedefe tıklayın.
                     </div>
                 </div>
 
                 <div class="card">
-                    <button class="btn btn--fullscreen" id="fullscreenBtn" type="button">Tam Ekran</button>
+                    <button class="btn btn--fullscreen" id="fullscreenBtn" type="button">⛶ Tam Ekran</button>
                 </div>
 
                 <div class="card">
-                    <button class="btn btn--multiplayer" id="multiplayerBtn" type="button">Çok Oyunculu</button>
+                    <button class="btn btn--multiplayer" id="multiplayerBtn" type="button">🌐 Çok Oyunculu</button>
                 </div>
             </aside>
         </main>
@@ -124,6 +126,7 @@
             </div>
         </div>
 
+        <!-- Game Over Modal -->
         <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true">
             <div class="modal__card">
                 <div class="modal__title" id="modalTitle">Oyun Bitti</div>
@@ -135,22 +138,19 @@
         </div>
     </div>
 
-    <!-- Mobil cihazlarda portre mod uyarısı -->
+    <!-- Orientation Warning (Portrait) -->
     <div class="orientation-warning">
         <div>
             <div class="orientation-warning__icon">📱</div>
             <div class="orientation-warning__title">Yatay Mod Gerekli</div>
             <div class="orientation-warning__text">
-                Bu oyunu oynamak için lütfen cihazınızı yatay konuma çevirin.<br>
-                (Landscape mode required to play this game)
+                Oyunu oynamak için cihazınızı yatay konuma çevirin.<br>
+                (Landscape mode required)
             </div>
         </div>
     </div>
 
-    <!-- 3D Container -->
-    <!-- 3D Container -->
-    <div id="board-container"></div>
-
+    
 </body>
 
 </html>
