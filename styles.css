@@ -445,7 +445,7 @@ body {
   
   /* Board'u geniş, paneli dar yap */
   .main {
-    grid-template-columns: 1fr 300px; /* Board %75, panel %25 */
+    grid-template-columns: 1fr 150px; /* Board geniş, panel dar (150px) */
     gap: 12px;
     align-items: start;
   }
@@ -561,11 +561,11 @@ body {
   
   /* Zarları daha görünür ve büyük yap */
   .die {
-    width: 28px;
-    height: 28px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 6px;
   }
 
   /* Siyah player için board'u çevir */
