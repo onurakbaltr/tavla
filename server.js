@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Create HTTP server (serves static files from project root)
-const ROOT = path.resolve(__dirname);
+const ROOT = path.resolve(__dirname, 'dist');
 function contentTypeFor(file) {
   const ext = path.extname(file).toLowerCase();
   switch (ext) {
