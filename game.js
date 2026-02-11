@@ -845,6 +845,8 @@
 
       // Chip size: based on point width; clamped so it doesn't look tiny on large screens or overflow on small.
       const chip = Math.max(26, Math.min(52, rect.width * 0.82));
+      // store chip size on the point so CSS can size children responsively
+      el.style.setProperty('--chip-size', `${chip}px`);
       const padding = Math.max(4, Math.min(10, rect.height * 0.04));
       const usable = Math.max(0, rect.height - padding * 2);
 
@@ -861,14 +863,13 @@
       for (let k = 0; k < chipsToDraw; k++) {
         const chipEl = document.createElement('div');
         chipEl.className = 'checkerChip';
-        chipEl.style.width = `${chip}px`;
-        chipEl.style.height = `${chip}px`;
-
-        const offset = padding + k * step;
+        // Position using percentage so stacking scales with point height
+        const offsetPx = padding + k * step;
+        const offsetPct = (offsetPx / rect.height) * 100;
         if (isTop) {
-          chipEl.style.top = `${offset}px`;
+          chipEl.style.top = `${offsetPct}%`;
         } else {
-          chipEl.style.bottom = `${offset}px`;
+          chipEl.style.bottom = `${offsetPct}%`;
         }
 
         const img = document.createElement('img');
@@ -915,14 +916,14 @@
       for (let i = 0; i < chipsToDraw; i++) {
         const chipEl = document.createElement('div');
         chipEl.className = 'barChip';
-        chipEl.style.width = `${chip}px`;
-        chipEl.style.height = `${chip}px`;
-
-        const offset = padding + i * step;
+        // size via CSS variable on the zone
+        zone.style.setProperty('--chip-size', `${chip}px`);
+        const offsetPx = padding + i * step;
+        const offsetPct = (offsetPx / rect.height) * 100;
         if (player === P.BLACK) {
-          chipEl.style.bottom = `${offset}px`;
+          chipEl.style.bottom = `${offsetPct}%`;
         } else {
-          chipEl.style.top = `${offset}px`;
+          chipEl.style.top = `${offsetPct}%`;
         }
 
         const img = document.createElement('img');
@@ -1739,6 +1740,31 @@
   window.addEventListener('pointerdown', () => {
     SFX.unlock();
   }, { once: true });
+
+  // Recompute layout on resize/orientation changes to keep chips aligned
+  function debounce(fn, wait = 120) {
+    let t = null;
+    return function(...args) {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => {
+        t = null;
+        fn.apply(this, args);
+      }, wait);
+    };
+  }
+
+  const handleResize = debounce(() => {
+    // Rebuild points and re-render stacks/bars so sizes/percent offsets update
+    layoutPoints();
+    renderStacks();
+    renderBar();
+  }, 140);
+
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', () => {
+    // orientationchange may fire before layout stabilizes; schedule a short delay
+    setTimeout(handleResize, 80);
+  });
 
   // Initialize board layout and start game
   layoutPoints();

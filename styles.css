@@ -187,8 +187,37 @@ body {
   position: absolute;
   display: block;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   transition: background 140ms ease, outline-color 140ms ease, transform 140ms ease;
+}
+
+/* Checker sizing driven by CSS variable --chip-size (set from JS) */
+.checkerChip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--chip-size, 44px);
+  height: var(--chip-size, 44px);
+  border-radius: 50%;
+  overflow: visible;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  will-change: transform;
+}
+
+.checker {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.45), inset 0 -6px 12px rgba(0,0,0,0.12);
+  transform: translateZ(0);
+}
+
+.checkerChip:hover {
+  transform: translateX(-50%) translateY(-3px) scale(1.03) translateZ(24px);
+  z-index: 30;
 }
 
 .point.is-selectable { outline: 2px solid rgba(124, 92, 255, 0.55); outline-offset: -2px; background: rgba(124, 92, 255, 0.12); }
