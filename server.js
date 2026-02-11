@@ -336,6 +336,25 @@ function rollDice(clientId) {
   room.availableDice = die1 === die2 ? [die1, die1, die1, die1] : [die1, die2];
   room.phase = 'MOVING';
 
+  // Check if player can make any move with these dice
+  // If not, automatically skip turn
+  let canMove = false;
+  for (const die of room.availableDice) {
+    const moves = enumerateSingleMoves(room, player, die);
+    if (moves.length > 0) {
+      canMove = true;
+      break;
+    }
+  }
+
+  // If can't move, switch turn immediately
+  if (!canMove) {
+    room.turn = opponent(player);
+    room.phase = 'NEED_ROLL';
+    room.dice = [];
+    room.availableDice = [];
+  }
+
   broadcastToRoom(clientId.roomCode, {
     type: 'DICE_ROLLED',
     gameState: cleanState(room)
