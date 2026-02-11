@@ -1060,6 +1060,8 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
   function initializeGame(receivedState) {
     state = receivedState;
+    // Convert legalTargets back to Map object
+    state.legalTargets = new Map();
     isMultiplayer = true;
     renderAll();
     setStatus('Oyun başladı! İyi eğlenceler!');
