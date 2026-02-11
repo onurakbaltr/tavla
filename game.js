@@ -1,3 +1,5 @@
+import { Backgammon3D } from './src/Backgammon3D.js';
+
 (() => {
   'use strict';
 
@@ -20,6 +22,9 @@
   let playerColor = null;
   let roomCode = null;
   let opponentName = null;
+
+  // 3D Engine
+  const bg3d = new Backgammon3D();
 
   const ASSETS = {
     board: 'assets/board.svg',
@@ -232,7 +237,7 @@
   function getActualCheckerPosition(player, from) {
     // Get the actual on-screen position of the checker being moved
     // Returns {x, y} or null if not found
-    
+
     // Must be a valid from location
     if (from === 'bar') {
       const barZone = barEls[player];
@@ -318,12 +323,14 @@
     }
 
     // CAPTURE the actual checker position BEFORE rendering removes it
-    const fromPos = getActualCheckerPosition(player, move.from);
+    // const fromPos = getActualCheckerPosition(player, move.from);
 
+    // Render current state, then animate, then apply and re-render.
     // Render current state, then animate, then apply and re-render.
     renderAll();
     SFX.move();
-    await animateMove(player, move, fromPos);
+    // await animateMove(player, move, fromPos); // DOM
+    await bg3d.animateMove(player, move); // 3D
     applyMoveInPlace(state, player, move);
     const idx = state.availableDice.indexOf(move.die);
     if (idx >= 0) state.availableDice.splice(idx, 1);
@@ -692,6 +699,21 @@
     els.overlay.innerHTML = '';
     pointEls.clear();
 
+    // Aggressively hide old board overlay
+    const boardWrap = document.querySelector('.boardWrap');
+    if (boardWrap) boardWrap.style.display = 'none';
+
+    // Init 3D Engine
+    const container = document.getElementById('board-container');
+    bg3d.init(container);
+
+    // Setup callbacks
+    bg3d.callbacks.onPointClick = (pointIdx) => {
+      // Simulate DOM event for existing logic
+      // We can just call onPointClick with a fake target or simple logic
+      handlePointClick(pointIdx);
+    };
+
     offEls.W = null;
     offEls.B = null;
 
@@ -977,7 +999,7 @@
 
   function onOffClick() {
     if (state.phase !== Phase.MOVING) return;
-    
+
     // Check if it's the current player's turn
     const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
     if (state.turn !== currentPlayer) return;
@@ -1053,12 +1075,78 @@
   window.initializeGame = initializeGame;
   window.updateOpponentName = updateOpponentName;
 
+  // Move handlePointClick outside of onPointClick to be reused
+  function handlePointClick(point) {
+    if (state.phase !== Phase.MOVING) return;
+
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+    if (state.turn !== currentPlayer) return;
+
+    // Check Bar First
+    if (state.bar[currentPlayer] > 0) {
+      // Treat click as choosing entry target
+      const targets = computeTargetsForSelection('bar');
+      const candidate = targets.get(point);
+      if (!candidate) return;
+
+      const move = pickMoveForTarget(candidate);
+      pushHistory();
+      performMoveWithAnimation(currentPlayer, move).then(() => {
+        state.selectedFrom = null;
+        state.legalTargets = new Map();
+        afterHumanMove();
+      });
+      return;
+    }
+
+    const owner = pointOwner(state.points, point);
+    if (state.selectedFrom == null) {
+      if (owner !== currentPlayer) return;
+
+      const targets = computeTargetsForSelection(point);
+      if (targets.size === 0) return;
+
+      state.selectedFrom = point;
+      state.legalTargets = targets;
+      setStatus('Choose a highlighted destination.');
+      renderAll();
+      return;
+    }
+
+    // Destination?
+    const candidate = state.legalTargets.get(point);
+    if (candidate) {
+      const move = pickMoveForTarget(candidate);
+      pushHistory();
+      performMoveWithAnimation(currentPlayer, move).then(() => {
+        state.selectedFrom = null;
+        state.legalTargets = new Map();
+        afterHumanMove();
+      });
+      return;
+    }
+
+    // Switch selection?
+    if (state.selectedFrom !== point && owner === currentPlayer) {
+      const targets = computeTargetsForSelection(point);
+      if (targets.size > 0) {
+        state.selectedFrom = point;
+        state.legalTargets = targets;
+        renderAll();
+      }
+      return;
+    }
+  }
+
   function renderAll() {
     updateDiceUI();
-    renderStacks();
-    renderBar();
-    renderHighlights();
+    // renderStacks(); // Removed DOM rendering
+    // renderBar();    // Removed DOM rendering
+    renderHighlights(); // Updates 3D highlights
     updateMetaUI();
+
+    // Sync 3D State
+    bg3d.syncState(state);
 
     // Apply board rotation for Black player in multiplayer
     if (isMultiplayer && playerColor === 'B') {
@@ -1081,7 +1169,7 @@
 
   function computeSelectableSourcesForHuman() {
     const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
-    
+
     // If bar has checkers, only bar is selectable (represented by not showing a point)
     if (state.bar[currentPlayer] > 0) return new Set(['bar']);
 
@@ -1124,7 +1212,7 @@
 
   function onPointClick(e) {
     if (state.phase !== Phase.MOVING) return;
-    
+
     // In multiplayer, check if it's the current player's turn
     // In single-player, only WHITE can make moves
     const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
@@ -1279,8 +1367,8 @@
 
     // Multiplayer turn control
     if (isMultiplayer) {
-      const isMyTurn = (playerColor === 'W' && state.turn === P.WHITE) || 
-                      (playerColor === 'B' && state.turn === P.BLACK);
+      const isMyTurn = (playerColor === 'W' && state.turn === P.WHITE) ||
+        (playerColor === 'B' && state.turn === P.BLACK);
       if (!isMyTurn) {
         setStatus('Rakibin sırası');
         return;
@@ -1619,7 +1707,7 @@
 
   function leaveRoom() {
     if (ws) {
-      try { ws.close(); } catch {}
+      try { ws.close(); } catch { }
       ws = null;
     }
     resetMultiplayer();
@@ -1665,14 +1753,14 @@
 
   function toggleFullscreen() {
     const doc = document.documentElement;
-    
+
     if (!document.fullscreenElement) {
       // Fullscreen'e gir
-      const request = doc.requestFullscreen || 
-                      doc.webkitRequestFullscreen || 
-                      doc.mozRequestFullScreen || 
-                      doc.msRequestFullscreen;
-      
+      const request = doc.requestFullscreen ||
+        doc.webkitRequestFullscreen ||
+        doc.mozRequestFullScreen ||
+        doc.msRequestFullscreen;
+
       if (request) {
         request.call(doc).catch(err => {
           console.warn('Failed to enter fullscreen:', err);
@@ -1680,11 +1768,11 @@
       }
     } else {
       // Fullscreen'den çık
-      const exit = document.exitFullscreen || 
-                   document.webkitExitFullscreen || 
-                   document.mozCancelFullScreen || 
-                   document.msExitFullscreen;
-      
+      const exit = document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+
       if (exit) {
         exit.call(document).catch(err => {
           console.warn('Failed to exit fullscreen:', err);
@@ -1701,7 +1789,7 @@
       els.fullscreenBtn.textContent = 'Tam Ekran';
     }
   });
-  
+
   // Webkit için fullscreen değişikliği
   document.addEventListener('webkitfullscreenchange', () => {
     if (document.webkitFullscreenElement) {
@@ -1744,7 +1832,7 @@
   // Recompute layout on resize/orientation changes to keep chips aligned
   function debounce(fn, wait = 120) {
     let t = null;
-    return function(...args) {
+    return function (...args) {
       if (t) clearTimeout(t);
       t = setTimeout(() => {
         t = null;
@@ -1755,9 +1843,8 @@
 
   const handleResize = debounce(() => {
     // Rebuild points and re-render stacks/bars so sizes/percent offsets update
-    layoutPoints();
-    renderStacks();
-    renderBar();
+    layoutPoints(); // Keep calling this to update 2D layout just in case
+    renderAll(); // Use the main render function which syncs 3D
   }, 140);
 
   window.addEventListener('resize', handleResize);
@@ -1766,7 +1853,28 @@
     setTimeout(handleResize, 80);
   });
 
-  // Initialize board layout and start game
+  // DEBUG: Interaction Inspector
+  const debugDiv = document.createElement('div');
+  debugDiv.style.position = 'fixed';
+  debugDiv.style.bottom = '10px';
+  debugDiv.style.right = '10px';
+  debugDiv.style.background = 'rgba(0,0,0,0.8)';
+  debugDiv.style.color = 'lime';
+  debugDiv.style.padding = '10px';
+  debugDiv.style.zIndex = '99999';
+  debugDiv.style.pointerEvents = 'none';
+  debugDiv.style.fontFamily = 'monospace';
+  debugDiv.innerText = 'Hover over element...';
+  document.body.appendChild(debugDiv);
+
+  window.addEventListener('mousemove', (e) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el) {
+      debugDiv.innerText = `Tag: ${el.tagName}\nID: ${el.id}\nClass: ${el.className}\nZ-Index: ${window.getComputedStyle(el).zIndex}`;
+    }
+  });
+
+  // Board layout
   layoutPoints();
   state = createInitialState();
   beginTurn(P.WHITE);
