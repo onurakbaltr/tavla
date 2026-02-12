@@ -78,7 +78,7 @@ export class Backgammon3D {
         // ─── Camera ───
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        this.camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 500);
+        this.camera = new THREE.PerspectiveCamera(80, width / height, 0.1, 500);
         this.camera.position.set(0, 48, 32);
         this.camera.lookAt(0, 0, 2);
 
@@ -108,6 +108,7 @@ export class Backgammon3D {
         this.controls.maxDistance = 70;
         this.controls.target.set(0, 0, 2);
         this.controls.enablePan = false;
+        this.controls.enableRotate = false;
 
         // ─── Lighting ───
         this.setupLighting();
@@ -149,11 +150,11 @@ export class Backgammon3D {
 
     setupLighting() {
         // Warm ambient — simulates room bounce light
-        const ambient = new THREE.AmbientLight(0xffeedd, 0.7);
+        const ambient = new THREE.AmbientLight(0xffeedd, 0.9);
         this.scene.add(ambient);
 
         // Key light — warm overhead spot (like a table lamp)
-        const keyLight = new THREE.DirectionalLight(0xffcc88, 2.2);
+        const keyLight = new THREE.DirectionalLight(0xffcc88, 3.0);
         keyLight.position.set(10, 55, 15);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 2048;
@@ -170,7 +171,7 @@ export class Backgammon3D {
         this.scene.add(keyLight);
 
         // Fill light — cool blue from opposite side
-        const fillLight = new THREE.DirectionalLight(0x8899cc, 0.8);
+        const fillLight = new THREE.DirectionalLight(0x8899cc, 1.0);
         fillLight.position.set(-20, 30, -15);
         this.scene.add(fillLight);
 
