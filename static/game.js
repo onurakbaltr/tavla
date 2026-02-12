@@ -1317,18 +1317,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       return;
     }
 
-    if (state.availableDice.length === 0) {
-      if (isMultiplayer) {
-        // Switch to opponent's turn
-        state.turn = state.turn === P.WHITE ? P.BLACK : P.WHITE;
-        beginTurn(state.turn);
-      } else {
-        endTurnToAI();
-      }
-    }
-
-    // If no legal moves left with remaining dice, end turn
-    if (!anyLegalMove(state, state.turn, state.availableDice)) {
+    if (state.availableDice.length === 0 || !anyLegalMove(state, state.turn, state.availableDice)) {
       if (isMultiplayer) {
         state.turn = opponent(state.turn);
         beginTurn(state.turn);
