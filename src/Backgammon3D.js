@@ -536,16 +536,16 @@ export class Backgammon3D {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
 
-        this.camera.aspect = width / height;
+        this.camera.aspect = 1;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
 
         if (width / height < 1) {
             // Portrait
-            const factor = 1 / (width / height);
-            this.camera.position.set(0, 45 * factor, 30 * factor);
+            const factor = 1 / 1;
+            this.camera.position.set(0, 60, 30);
         } else {
-            this.camera.position.set(0, 48, 32);
+            this.camera.position.set(0, 60, 32);
         }
         this.camera.lookAt(0, 0, 2);
     }
