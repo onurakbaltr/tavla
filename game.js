@@ -1336,7 +1336,6 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       } else {
         endTurnToAI();
       }
-      return;
     }
  if (isMultiplayer && state.turn === P.BLACK) {
       if (!anyLegalMove(state, P.BLACK, state.availableDice)) {

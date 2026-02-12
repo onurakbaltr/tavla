@@ -1325,7 +1325,6 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       } else {
         endTurnToAI();
       }
-      return;
     }
 
     // If no legal moves left with remaining dice, end turn
