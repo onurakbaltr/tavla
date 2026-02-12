@@ -552,7 +552,7 @@ body {
   }
 
   .panel {
-    width: 180px;
+    width: 110px;
     padding: 6px;
     gap: 4px;
     max-height: calc(100vh - 40px);
@@ -575,6 +575,11 @@ body {
   .btn {
     padding: 5px 8px;
     font-size: 10px;
+  }
+
+  #rollBtn {
+    padding: 7px 12px;
+    font-size: 12px;
   }
 
   .die {
