@@ -78,7 +78,7 @@ export class Backgammon3D {
         // ─── Camera ───
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        this.camera = new THREE.PerspectiveCamera(80, width / height, 0.1, 500);
+        this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 500);
         this.camera.position.set(0, 48, 32);
         this.camera.lookAt(0, 0, 2);
 
