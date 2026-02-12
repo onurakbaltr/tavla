@@ -93,7 +93,7 @@ export class Backgammon3D {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.3;
+        this.renderer.toneMappingExposure = 1.5;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         this.container.appendChild(this.renderer.domElement);
