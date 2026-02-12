@@ -93,7 +93,7 @@ export class Backgammon3D {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.2;
+        this.renderer.toneMappingExposure = 1.3;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         this.container.appendChild(this.renderer.domElement);
@@ -149,11 +149,11 @@ export class Backgammon3D {
 
     setupLighting() {
         // Warm ambient — simulates room bounce light
-        const ambient = new THREE.AmbientLight(0xffeedd, 0.35);
+        const ambient = new THREE.AmbientLight(0xffeedd, 0.7);
         this.scene.add(ambient);
 
         // Key light — warm overhead spot (like a table lamp)
-        const keyLight = new THREE.DirectionalLight(0xffcc88, 1.8);
+        const keyLight = new THREE.DirectionalLight(0xffcc88, 2.2);
         keyLight.position.set(10, 55, 15);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 2048;
@@ -170,7 +170,7 @@ export class Backgammon3D {
         this.scene.add(keyLight);
 
         // Fill light — cool blue from opposite side
-        const fillLight = new THREE.DirectionalLight(0x8899cc, 0.4);
+        const fillLight = new THREE.DirectionalLight(0x8899cc, 0.8);
         fillLight.position.set(-20, 30, -15);
         this.scene.add(fillLight);
 
@@ -187,7 +187,7 @@ export class Backgammon3D {
         this.scene.add(bounceLight);
 
         // Hemisphere light for natural sky/ground gradient
-        const hemi = new THREE.HemisphereLight(0xccaa88, 0x443322, 0.25);
+        const hemi = new THREE.HemisphereLight(0xccaa88, 0x443322, 0.5);
         this.scene.add(hemi);
     }
 
