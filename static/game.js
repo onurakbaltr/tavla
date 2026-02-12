@@ -1,5 +1,9 @@
+import { Backgammon3D } from './src/Backgammon3D.js';
+
 (() => {
   'use strict';
+
+  console.log('game.js loaded successfully');
 
   const P = {
     WHITE: 'W',
@@ -12,6 +16,15 @@
     AI_THINKING: 'AI_THINKING',
     GAME_OVER: 'GAME_OVER',
   };
+
+  // Global multiplayer variables
+  let isMultiplayer = false;
+  let playerColor = null;
+  let roomCode = null;
+  let opponentName = null;
+
+  // 3D Engine
+  const bg3d = new Backgammon3D();
 
   const ASSETS = {
     board: 'assets/board.svg',
@@ -54,7 +67,7 @@
 
     function tone({ type = 'sine', freq = 440, dur = 0.08, gain = 0.06, when = 0, ramp = true } = {}) {
       const c = ensure();
-      if (!c) return;
+      if (!c || c.state !== 'running') return; // Prevent errors if suspended
 
       const t0 = c.currentTime + when;
       const o = c.createOscillator();
@@ -72,7 +85,8 @@
 
     function noise({ dur = 0.10, gain = 0.06, when = 0, hp = 1200 } = {}) {
       const c = ensure();
-      if (!c) return;
+      if (!c || c.state !== 'running') return; // Prevent errors if suspended
+
       const t0 = c.currentTime + when;
 
       const len = Math.max(1, Math.floor(c.sampleRate * dur));
@@ -99,7 +113,8 @@
 
     function woodTap({ bodyFreq = 220, clickFreq = 1400, dur = 0.10, gain = 0.07, when = 0 } = {}) {
       const c = ensure();
-      if (!c) return;
+      if (!c || c.state !== 'running') return; // Prevent errors if suspended
+
       const t0 = c.currentTime + when;
 
       // Clicky component
@@ -222,7 +237,7 @@
   function getActualCheckerPosition(player, from) {
     // Get the actual on-screen position of the checker being moved
     // Returns {x, y} or null if not found
-    
+
     // Must be a valid from location
     if (from === 'bar') {
       const barZone = barEls[player];
@@ -308,12 +323,14 @@
     }
 
     // CAPTURE the actual checker position BEFORE rendering removes it
-    const fromPos = getActualCheckerPosition(player, move.from);
+    // const fromPos = getActualCheckerPosition(player, move.from);
 
+    // Render current state, then animate, then apply and re-render.
     // Render current state, then animate, then apply and re-render.
     renderAll();
     SFX.move();
-    await animateMove(player, move, fromPos);
+    // await animateMove(player, move, fromPos); // DOM
+    await bg3d.animateMove(player, move); // 3D
     applyMoveInPlace(state, player, move);
     const idx = state.availableDice.indexOf(move.die);
     if (idx >= 0) state.availableDice.splice(idx, 1);
@@ -323,6 +340,20 @@
       window.setTimeout(() => els.board.classList.remove('is-hit'), 280);
     }
     renderAll();
+
+    // Send move to peer in multiplayer
+    if (isMultiplayer) {
+      sendMove(move);
+    }
+
+    // Handle turn switching
+    if (isMultiplayer) {
+      if ((playerColor === 'W' && player === P.WHITE) || (playerColor === 'B' && player === P.BLACK)) {
+        afterHumanMove();
+      }
+    } else if (player === P.WHITE) {
+      afterHumanMove();
+    }
   }
 
   function cloneState(s) {
@@ -635,6 +666,9 @@
     newGameBtn: document.getElementById('newGameBtn'),
     dieA: document.getElementById('dieA'),
     dieB: document.getElementById('dieB'),
+    youLabel: document.getElementById('youLabel'),
+    aiLabel: document.getElementById('aiLabel'),
+    opponentLabel: document.getElementById('opponentLabel'),
     barText: document.getElementById('barText'),
     offText: document.getElementById('offText'),
     modal: document.getElementById('modal'),
@@ -664,6 +698,21 @@
   function layoutPoints() {
     els.overlay.innerHTML = '';
     pointEls.clear();
+
+    // Aggressively hide old board overlay
+    const boardWrap = document.querySelector('.boardWrap');
+    if (boardWrap) boardWrap.style.display = 'none';
+
+    // Init 3D Engine
+    const container = document.getElementById('board-container');
+    bg3d.init(container);
+
+    // Setup callbacks
+    bg3d.callbacks.onPointClick = (pointIdx) => {
+      // Simulate DOM event for existing logic
+      // We can just call onPointClick with a fake target or simple logic
+      handlePointClick(pointIdx);
+    };
 
     offEls.W = null;
     offEls.B = null;
@@ -795,7 +844,9 @@
     els.dieA.src = dieImg(a);
     els.dieB.src = dieImg(b);
 
-    const canRoll = state.phase === Phase.NEED_ROLL && state.turn === P.WHITE;
+    // Can roll when it's NEED_ROLL and it's this client's turn.
+    const isPlayerTurn = isMultiplayer ? (state.turn === playerColor) : (state.turn === P.WHITE);
+    const canRoll = state.phase === Phase.NEED_ROLL && isPlayerTurn;
     els.rollBtn.disabled = !canRoll;
   }
 
@@ -816,6 +867,8 @@
 
       // Chip size: based on point width; clamped so it doesn't look tiny on large screens or overflow on small.
       const chip = Math.max(26, Math.min(52, rect.width * 0.82));
+      // store chip size on the point so CSS can size children responsively
+      el.style.setProperty('--chip-size', `${chip}px`);
       const padding = Math.max(4, Math.min(10, rect.height * 0.04));
       const usable = Math.max(0, rect.height - padding * 2);
 
@@ -832,14 +885,13 @@
       for (let k = 0; k < chipsToDraw; k++) {
         const chipEl = document.createElement('div');
         chipEl.className = 'checkerChip';
-        chipEl.style.width = `${chip}px`;
-        chipEl.style.height = `${chip}px`;
-
-        const offset = padding + k * step;
+        // Position using percentage so stacking scales with point height
+        const offsetPx = padding + k * step;
+        const offsetPct = (offsetPx / rect.height) * 100;
         if (isTop) {
-          chipEl.style.top = `${offset}px`;
+          chipEl.style.top = `${offsetPct}%`;
         } else {
-          chipEl.style.bottom = `${offset}px`;
+          chipEl.style.bottom = `${offsetPct}%`;
         }
 
         const img = document.createElement('img');
@@ -886,14 +938,14 @@
       for (let i = 0; i < chipsToDraw; i++) {
         const chipEl = document.createElement('div');
         chipEl.className = 'barChip';
-        chipEl.style.width = `${chip}px`;
-        chipEl.style.height = `${chip}px`;
-
-        const offset = padding + i * step;
+        // size via CSS variable on the zone
+        zone.style.setProperty('--chip-size', `${chip}px`);
+        const offsetPx = padding + i * step;
+        const offsetPct = (offsetPx / rect.height) * 100;
         if (player === P.BLACK) {
-          chipEl.style.bottom = `${offset}px`;
+          chipEl.style.bottom = `${offsetPct}%`;
         } else {
-          chipEl.style.top = `${offset}px`;
+          chipEl.style.top = `${offsetPct}%`;
         }
 
         const img = document.createElement('img');
@@ -923,7 +975,8 @@
     }
 
     // highlight selectable points for human
-    if (state.turn !== P.WHITE || state.phase !== Phase.MOVING) return;
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+    if (state.turn !== currentPlayer || state.phase !== Phase.MOVING) return;
 
     const selectable = computeSelectableSourcesForHuman();
     for (const src of selectable) {
@@ -935,7 +988,8 @@
     // highlight targets for current selection
     for (const [to] of state.legalTargets.entries()) {
       if (to === 'off') {
-        if (offEls.W) offEls.W.classList.add('is-target');
+        if (currentPlayer === 'W' && offEls.W) offEls.W.classList.add('is-target');
+        if (currentPlayer === 'B' && offEls.B) offEls.B.classList.add('is-target');
         continue;
       }
       const el = pointEls.get(to);
@@ -945,7 +999,10 @@
 
   function onOffClick() {
     if (state.phase !== Phase.MOVING) return;
-    if (state.turn !== P.WHITE) return;
+
+    // Check if it's the current player's turn
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+    if (state.turn !== currentPlayer) return;
     if (state.selectedFrom == null) return;
 
     const candidate = state.legalTargets.get('off');
@@ -953,7 +1010,7 @@
 
     const move = pickMoveForTarget(candidate);
     pushHistory();
-    performMoveWithAnimation(P.WHITE, move).then(() => {
+    performMoveWithAnimation(currentPlayer, move).then(() => {
       state.selectedFrom = null;
       state.legalTargets = new Map();
       afterHumanMove();
@@ -961,7 +1018,27 @@
   }
 
   function updateMetaUI() {
-    els.turnPill.textContent = state.turn === P.WHITE ? 'Sen (Beyaz)' : 'Bilgisayar (Siyah)';
+    if (isMultiplayer) {
+      // Multiplayer: show both players with their colors
+      if (playerColor === 'W') {
+        els.turnPill.textContent = state.turn === P.WHITE ? 'Sen (Beyaz)' : 'Rakip (Siyah)';
+        els.youLabel.textContent = 'Beyaz';
+        els.aiLabel.textContent = 'Siyah';
+      } else {
+        els.turnPill.textContent = state.turn === P.BLACK ? 'Sen (Siyah)' : 'Rakip (Beyaz)';
+        els.youLabel.textContent = 'Siyah';
+        els.aiLabel.textContent = 'Beyaz';
+      }
+      // Update opponent label to show their name
+      els.opponentLabel.textContent = opponentName || 'Rakip';
+    } else {
+      // Single player: Bilgisayar vs player
+      els.turnPill.textContent = state.turn === P.WHITE ? 'Sen (Beyaz)' : 'Bilgisayar (Siyah)';
+      els.youLabel.textContent = 'Beyaz';
+      els.aiLabel.textContent = 'Siyah';
+      els.opponentLabel.textContent = 'Bilgisayar';
+    }
+
     els.phasePill.textContent = state.phase;
 
     els.barText.textContent = `W ${state.bar.W} — B ${state.bar.B}`;
@@ -970,12 +1047,115 @@
     els.undoBtn.disabled = state.history.length === 0 || state.turn !== P.WHITE || (state.phase !== Phase.MOVING);
   }
 
+  // ----- Global Functions for HTML Access -----
+
+  function getGameState() {
+    // Create a clean copy of state without Map objects (PeerJS can't serialize Maps)
+    const cleanState = {
+      ...state,
+      legalTargets: {} // Remove Map object
+    };
+    return cleanState;
+  }
+
+  function initializeGame(receivedState) {
+    state = receivedState;
+    // Convert legalTargets back to Map object
+    state.legalTargets = new Map();
+    isMultiplayer = true;
+    renderAll();
+    setStatus('Oyun başladı! İyi eğlenceler!');
+  }
+
+  // Make functions global for HTML onclick (moved to end)
+  window.openMultiplayerModal = openMultiplayerModal;
+  window.createRoom = createRoom;
+  window.joinRoom = joinRoom;
+  window.leaveRoom = leaveRoom;
+  window.closeMultiplayerModal = closeMultiplayerModal;
+  window.getGameState = getGameState;
+  window.initializeGame = initializeGame;
+  window.updateOpponentName = updateOpponentName;
+
+  // Move handlePointClick outside of onPointClick to be reused
+  function handlePointClick(point) {
+    if (state.phase !== Phase.MOVING) return;
+
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+    if (state.turn !== currentPlayer) return;
+
+    // Check Bar First
+    if (state.bar[currentPlayer] > 0) {
+      // Treat click as choosing entry target
+      const targets = computeTargetsForSelection('bar');
+      const candidate = targets.get(point);
+      if (!candidate) return;
+
+      const move = pickMoveForTarget(candidate);
+      pushHistory();
+      performMoveWithAnimation(currentPlayer, move).then(() => {
+        state.selectedFrom = null;
+        state.legalTargets = new Map();
+        afterHumanMove();
+      });
+      return;
+    }
+
+    const owner = pointOwner(state.points, point);
+    if (state.selectedFrom == null) {
+      if (owner !== currentPlayer) return;
+
+      const targets = computeTargetsForSelection(point);
+      if (targets.size === 0) return;
+
+      state.selectedFrom = point;
+      state.legalTargets = targets;
+      setStatus('Choose a highlighted destination.');
+      renderAll();
+      return;
+    }
+
+    // Destination?
+    const candidate = state.legalTargets.get(point);
+    if (candidate) {
+      const move = pickMoveForTarget(candidate);
+      pushHistory();
+      performMoveWithAnimation(currentPlayer, move).then(() => {
+        state.selectedFrom = null;
+        state.legalTargets = new Map();
+        afterHumanMove();
+      });
+      return;
+    }
+
+    // Switch selection?
+    if (state.selectedFrom !== point && owner === currentPlayer) {
+      const targets = computeTargetsForSelection(point);
+      if (targets.size > 0) {
+        state.selectedFrom = point;
+        state.legalTargets = targets;
+        renderAll();
+      }
+      return;
+    }
+  }
+
   function renderAll() {
     updateDiceUI();
-    renderStacks();
-    renderBar();
-    renderHighlights();
+    // renderStacks(); // Removed DOM rendering
+    // renderBar();    // Removed DOM rendering
+    renderHighlights(); // Updates 3D highlights
     updateMetaUI();
+
+    // Sync 3D State
+    bg3d.syncState(state);
+
+    // Apply board rotation for Black player in multiplayer
+    if (isMultiplayer && playerColor === 'B') {
+      els.board.classList.add('board--black-view');
+    } else {
+      els.board.classList.remove('board--black-view');
+    }
 
     const winner = checkWinner(state);
     if (winner && state.phase !== Phase.GAME_OVER) {
@@ -990,30 +1170,32 @@
   // ----- Human interaction -----
 
   function computeSelectableSourcesForHuman() {
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+
     // If bar has checkers, only bar is selectable (represented by not showing a point)
-    if (state.bar.W > 0) return new Set(['bar']);
+    if (state.bar[currentPlayer] > 0) return new Set(['bar']);
 
     const sources = new Set();
     const dice = state.availableDice;
-    const sgn = sign(P.WHITE);
 
     for (const d of dice) {
-      const moves = enumerateSingleMoves(state, P.WHITE, d);
+      const moves = enumerateSingleMoves(state, currentPlayer, d);
       for (const m of moves) {
         if (m.from !== 'bar') sources.add(m.from);
       }
     }
 
     // If no moves exist, empty
-    // Also allow selection if point has white checkers
+    // Also allow selection if point has current player's checkers
     // (sources already handles legality)
     return sources;
   }
 
   function computeTargetsForSelection(selection) {
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
     const targets = new Map();
     for (const die of state.availableDice) {
-      const moves = enumerateSingleMoves(state, P.WHITE, die);
+      const moves = enumerateSingleMoves(state, currentPlayer, die);
       for (const m of moves) {
         if (m.from !== selection) continue;
         const key = m.to;
@@ -1032,12 +1214,16 @@
 
   function onPointClick(e) {
     if (state.phase !== Phase.MOVING) return;
-    if (state.turn !== P.WHITE) return;
+
+    // In multiplayer, check if it's the current player's turn
+    // In single-player, only WHITE can make moves
+    const currentPlayer = isMultiplayer ? playerColor : P.WHITE;
+    if (state.turn !== currentPlayer) return;
 
     const point = Number(e.currentTarget.dataset.point);
 
     // If bar checkers exist, points cannot be selected, only entry targets
-    if (state.bar.W > 0) {
+    if (state.bar[currentPlayer] > 0) {
       // Treat click as choosing entry target
       const targets = computeTargetsForSelection('bar');
       const candidate = targets.get(point);
@@ -1045,7 +1231,7 @@
 
       const move = pickMoveForTarget(candidate);
       pushHistory();
-      performMoveWithAnimation(P.WHITE, move).then(() => {
+      performMoveWithAnimation(currentPlayer, move).then(() => {
         state.selectedFrom = null;
         state.legalTargets = new Map();
         afterHumanMove();
@@ -1056,7 +1242,7 @@
     const owner = pointOwner(state.points, point);
     if (state.selectedFrom == null) {
       // Select source
-      if (owner !== P.WHITE) return;
+      if (owner !== currentPlayer) return;
 
       const targets = computeTargetsForSelection(point);
       if (targets.size === 0) return;
@@ -1073,7 +1259,7 @@
     if (candidate) {
       const move = pickMoveForTarget(candidate);
       pushHistory();
-      performMoveWithAnimation(P.WHITE, move).then(() => {
+      performMoveWithAnimation(currentPlayer, move).then(() => {
         state.selectedFrom = null;
         state.legalTargets = new Map();
         afterHumanMove();
@@ -1082,7 +1268,7 @@
     }
 
     // If selecting a different source, switch
-    if (state.selectedFrom !== point && owner === P.WHITE) {
+    if (state.selectedFrom !== point && owner === currentPlayer) {
       const targets = computeTargetsForSelection(point);
       if (targets.size > 0) {
         state.selectedFrom = point;
@@ -1132,21 +1318,63 @@
     }
 
     if (state.availableDice.length === 0) {
-      endTurnToAI();
+      if (isMultiplayer) {
+        // Switch to opponent's turn
+        state.turn = state.turn === P.WHITE ? P.BLACK : P.WHITE;
+        beginTurn(state.turn);
+      } else {
+        endTurnToAI();
+      }
       return;
     }
 
     // If no legal moves left with remaining dice, end turn
-    if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
-      endTurnToAI();
+    if (!anyLegalMove(state, state.turn, state.availableDice)) {
+      if (isMultiplayer) {
+        state.turn = opponent(state.turn);
+        beginTurn(state.turn);
+      } else {
+        endTurnToAI();
+      }
       return;
     }
+ if (isMultiplayer && state.turn === P.BLACK) {
+      if (!anyLegalMove(state, P.BLACK, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.WHITE;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
 
-    setStatus('Your move.');
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+    if (isMultiplayer && state.turn === P.WHITE) {
+      if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.BLACK;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
+
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+    setStatus('Devam et.');
     renderAll();
   }
-
-  // ----- Turn management -----
 
   function beginTurn(player) {
     state.turn = player;
@@ -1159,6 +1387,8 @@
 
     if (player === P.WHITE) {
       setStatus('Sıra sende. Zar at.');
+    } else if (isMultiplayer) {
+      setStatus('Rakip sırası');
     } else {
       setStatus('Bilgisayar sırası. Zar atılıyor…');
     }
@@ -1169,6 +1399,29 @@
   function doRoll() {
     if (state.phase !== Phase.NEED_ROLL) return;
 
+    // Multiplayer turn control
+    if (isMultiplayer) {
+      const isMyTurn = (playerColor === 'W' && state.turn === P.WHITE) ||
+        (playerColor === 'B' && state.turn === P.BLACK);
+      if (!isMyTurn) {
+        setStatus('Rakibin sırası');
+        return;
+      }
+    }
+
+    // Multiplayer: ask server to roll and broadcast result
+    if (isMultiplayer) {
+      SFX.dice();
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setStatus('Sunucuya bağlı değil');
+        return;
+      }
+      sendRollRequest();
+      setStatus('Zar isteniyor...');
+      return;
+    }
+
+    // Single-player local roll
     SFX.dice();
     const d = rollDice();
     state.dice = d;
@@ -1177,9 +1430,15 @@
     if (state.turn === P.WHITE) {
       // If no legal moves, pass automatically
       if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
-        setStatus('Geçerli hamle yok. Bilgisayara geçiliyor.');
+        setStatus('Geçerli hamle yok. Rakibe geçiliyor.');
         renderAll();
-        window.setTimeout(endTurnToAI, 450);
+        window.setTimeout(() => {
+          if (isMultiplayer) {
+            beginTurn(opponent(state.turn));
+          } else {
+            endTurnToAI();
+          }
+        }, 450);
         return;
       }
 
@@ -1189,11 +1448,67 @@
       return;
     }
 
-    // AI
-    state.phase = Phase.AI_THINKING;
-    setStatus('Bilgisayar düşünüyor…');
-    renderAll();
-    window.setTimeout(runAiTurn, 350);
+    // Multiplayer: Black player's turn
+    if (isMultiplayer && state.turn === P.BLACK) {
+      if (!anyLegalMove(state, P.BLACK, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.WHITE;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
+
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+    if (isMultiplayer && state.turn === P.WHITE) {
+      if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.BLACK;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
+
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+
+    // Single player: AI's turn
+    if (state.turn === P.BLACK) {
+      state.phase = Phase.AI_THINKING;
+      renderAll();
+      window.setTimeout(runAiTurn, ANIM.aiStepMs);
+    }
+  }
+
+  function newGame() {
+    closeModal();
+    state = createInitialState();
+    if (isMultiplayer) {
+      playerColor = isHost ? 'W' : 'B';
+      beginTurn(P.WHITE);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'NEW_GAME' }));
+      }
+    } else {
+      beginTurn(P.WHITE);
+    }
+  }
+
+  function updateOpponentName(name) {
+    opponentName = name;
+    els.opponentName.textContent = name;
   }
 
   function endTurnToAI() {
@@ -1239,15 +1554,13 @@
     })();
   }
 
-  // ----- Multiplayer -----
+  // ----- Multiplayer (WebSocket) -----
 
   let ws = null;
-  let isMultiplayer = false;
-  let playerColor = null;
-  let roomCode = null;
-  let opponentName = null;
+  let isHost = false;
 
   function openMultiplayerModal() {
+    console.log('Opening multiplayer modal');
     els.multiplayerModal.classList.add('is-open');
     els.multiplayerModal.setAttribute('aria-hidden', 'false');
   }
@@ -1267,83 +1580,125 @@
     els.roomInfo.style.display = 'none';
   }
 
-  function connectToServer() {
+  function connectWS() {
     if (ws && ws.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    ws = new WebSocket(`${protocol}//${host}`);
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = location.hostname || 'localhost';
+    const port = location.port ? `:${location.port}` : '';
+    const url = `${proto}://${host}${port}`;
 
-    ws.onopen = () => {
-      console.log('Connected to multiplayer server');
+    ws = new WebSocket(url);
+
+    ws.addEventListener('open', () => {
+      console.log('WebSocket connected to', url);
       setStatus('Sunucuya bağlandı');
-    };
+    });
 
-    ws.onmessage = (event) => {
+    ws.addEventListener('message', (ev) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(ev.data);
         handleServerMessage(data);
       } catch (err) {
-        console.error('Invalid server message:', err);
+        console.error('Invalid WS message', err);
       }
-    };
+    });
 
-    ws.onclose = () => {
-      console.log('Disconnected from server');
-      setStatus('Sunucu bağlantısı kesildi');
-      isMultiplayer = false;
-      playerColor = null;
-      roomCode = null;
-      opponentName = null;
-      hideRoomInfo();
-    };
+    ws.addEventListener('close', () => {
+      console.log('WebSocket closed');
+      setStatus('Rakip bağlantısı kesildi');
+      resetMultiplayer();
+      ws = null;
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setStatus('Bağlantı hatası');
-    };
+    ws.addEventListener('error', (err) => {
+      console.error('WebSocket error', err);
+      setStatus('WebSocket hatası');
+    });
   }
 
-  function handleServerMessage(data) {
-    switch (data.type) {
+  function handleServerMessage(msg) {
+    switch (msg.type) {
       case 'ROOM_CREATED':
-        roomCode = data.roomCode;
-        playerColor = data.player;
-        showRoomInfo(roomCode, null);
-        setStatus(`Oda oluşturuldu: ${roomCode}. Rakip bekleniyor...`);
+        roomCode = msg.roomCode;
+        playerColor = msg.player === 'W' ? 'W' : 'B';
+        isHost = msg.player === 'W';
+        state = msg.gameState || createInitialState();
         isMultiplayer = true;
+        showRoomInfo(roomCode, 'Bekleniyor...');
+        setStatus(`Oda oluşturuldu: ${roomCode}. Rakip bekleniyor...`);
+        renderAll();
+        break;
+
+      case 'JOINED':
+        // Direct confirmation for the joining client
+        roomCode = msg.roomCode;
+        playerColor = msg.player;  // 'W' or 'B' from server
+        isHost = false;
+        state = msg.gameState || createInitialState();
+        isMultiplayer = true;
+        showRoomInfo(roomCode, 'Bekleniyor...');
+        setStatus(`Odaya katıldınız: ${roomCode}`);
+        renderAll();
         break;
 
       case 'PLAYER_JOINED':
-        opponentName = data.gameState.players.B ? 'Siyah Oyuncu' : 'Beyaz Oyuncu';
-        showRoomInfo(roomCode, opponentName);
-        setStatus(`${opponentName} odaya katıldı!`);
-        state = data.gameState;
+        state = msg.gameState || state;
+        isMultiplayer = true;
+        setStatus('Rakip katıldı, oyun başlıyor');
+        showRoomInfo(roomCode, 'Rakip');
         renderAll();
         break;
 
       case 'DICE_ROLLED':
-        state = data.gameState;
+        if (msg.gameState) {
+          state = msg.gameState;
+          state.legalTargets = new Map();
+        }
         renderAll();
-        setStatus('Zarlar atıldı!');
+        setStatus('Zar atıldı: ' + (state.dice ? state.dice.join(', ') : ''));
         break;
 
       case 'MOVE_MADE':
-        state = data.gameState;
-        renderAll();
-        setStatus('Hamle yapıldı');
+        if (msg.move) {
+          // server already updated gameState; prefer authoritative state
+          if (msg.gameState) {
+            state = msg.gameState;
+            state.legalTargets = new Map();
+          } else {
+            applyMoveFromPeer(msg.move, msg.player || (playerColor === 'W' ? 'B' : 'W'));
+          }
+          renderAll();
+          setStatus('Rakip hamle yaptı');
+        }
         break;
 
+      case 'MOVE_UNDONE':
       case 'NEW_GAME':
-        state = data.gameState;
-        renderAll();
-        setStatus('Yeni oyun başladı');
+        if (msg.gameState) {
+          state = msg.gameState;
+          state.legalTargets = new Map();
+          renderAll();
+        }
         break;
 
       case 'ERROR':
-        alert(data.message);
+        alert(msg.message || 'Sunucu hatası');
         break;
+
+      default:
+        console.log('Unhandled server message', msg.type);
     }
+  }
+
+  function sendMove(move) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'MAKE_MOVE', move }));
+  }
+
+  function sendRollRequest() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'ROLL_DICE' }));
   }
 
   function createRoom() {
@@ -1352,20 +1707,22 @@
       alert('Lütfen isminizi girin');
       return;
     }
-
-    connectToServer();
-    setTimeout(() => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'CREATE_ROOM',
-          playerName
-        }));
+    connectWS();
+    // send create room request once socket is open
+    const sendCreate = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setTimeout(sendCreate, 150);
+        return;
       }
-    }, 500);
+      ws.send(JSON.stringify({ type: 'CREATE_ROOM', playerName }));
+    };
+    sendCreate();
+    isHost = true;
+    closeMultiplayerModal();
   }
 
   function joinRoom() {
-    const roomCodeInput = els.roomCodeInput.value.trim().toUpperCase();
+    const roomCodeInput = els.roomCodeInput.value.trim();
     const playerName = els.playerNameInput.value.trim();
 
     if (!playerName) {
@@ -1373,49 +1730,86 @@
       return;
     }
 
-    if (!roomCodeInput || roomCodeInput.length !== 6) {
-      alert('Lütfen geçerli bir oda kodu girin');
+    if (!roomCodeInput) {
+      alert('Lütfen oda kodunu girin');
+      return;
+    }
+    // enforce 2-digit numeric room codes
+    if (!/^\d{2}$/.test(roomCodeInput)) {
+      alert('Oda kodu iki rakam olmalıdır (ör. 42)');
       return;
     }
 
-    connectToServer();
-    setTimeout(() => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'JOIN_ROOM',
-          roomCode: roomCodeInput,
-          playerName
-        }));
+    connectWS();
+    const sendJoin = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setTimeout(sendJoin, 150);
+        return;
       }
-    }, 500);
+      ws.send(JSON.stringify({ type: 'JOIN_ROOM', roomCode: roomCodeInput, playerName }));
+      roomCode = roomCodeInput;
+      isHost = false;
+      closeMultiplayerModal();
+    };
+    sendJoin();
   }
 
   function leaveRoom() {
     if (ws) {
-      ws.close();
+      try { ws.close(); } catch { }
+      ws = null;
     }
+    resetMultiplayer();
+    setStatus('Çok oyunculu moddan çıkıldı');
+    state = createInitialState();
+    renderAll();
+  }
+
+  function resetMultiplayer() {
     isMultiplayer = false;
     playerColor = null;
     roomCode = null;
     opponentName = null;
+    isHost = false;
     hideRoomInfo();
-    setStatus('Çok oyunculu moddan çıkıldı');
-    state = createInitialState();
+  }
+
+  function applyMoveFromPeer(move, player) {
+    // Apply move logic for peer moves
+    const playerObj = player === 'W' ? P.WHITE : P.BLACK;
+    applyMoveInPlace(state, playerObj, move);
+    const idx = state.availableDice.indexOf(move.die);
+    if (idx >= 0) state.availableDice.splice(idx, 1);
     renderAll();
+    setStatus('Rakip hamle yaptı');
+
+    // If this was the opponent's move, check if their turn should end
+    const opponent_color = playerColor === 'W' ? 'B' : 'W';
+    if (player === opponent_color) {
+      // Check if opponent has more legal moves
+      if (state.availableDice.length === 0 || !anyLegalMove(state, playerObj, state.availableDice)) {
+        // Opponent's turn ended, now it's my turn
+        state.turn = playerColor === 'W' ? P.WHITE : P.BLACK;
+        beginTurn(state.turn);
+      } else {
+        setStatus('Rakip hamle yapmaya devam ediyor');
+        renderAll();
+      }
+    }
   }
 
   // ----- Wire up -----
 
   function toggleFullscreen() {
     const doc = document.documentElement;
-    
+
     if (!document.fullscreenElement) {
       // Fullscreen'e gir
-      const request = doc.requestFullscreen || 
-                      doc.webkitRequestFullscreen || 
-                      doc.mozRequestFullScreen || 
-                      doc.msRequestFullscreen;
-      
+      const request = doc.requestFullscreen ||
+        doc.webkitRequestFullscreen ||
+        doc.mozRequestFullScreen ||
+        doc.msRequestFullscreen;
+
       if (request) {
         request.call(doc).catch(err => {
           console.warn('Failed to enter fullscreen:', err);
@@ -1423,11 +1817,11 @@
       }
     } else {
       // Fullscreen'den çık
-      const exit = document.exitFullscreen || 
-                   document.webkitExitFullscreen || 
-                   document.mozCancelFullScreen || 
-                   document.msExitFullscreen;
-      
+      const exit = document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+
       if (exit) {
         exit.call(document).catch(err => {
           console.warn('Failed to exit fullscreen:', err);
@@ -1444,7 +1838,7 @@
       els.fullscreenBtn.textContent = 'Tam Ekran';
     }
   });
-  
+
   // Webkit için fullscreen değişikliği
   document.addEventListener('webkitfullscreenchange', () => {
     if (document.webkitFullscreenElement) {
@@ -1483,4 +1877,34 @@
   window.addEventListener('pointerdown', () => {
     SFX.unlock();
   }, { once: true });
+
+  // Recompute layout on resize/orientation changes to keep chips aligned
+  function debounce(fn, wait = 120) {
+    let t = null;
+    return function (...args) {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => {
+        t = null;
+        fn.apply(this, args);
+      }, wait);
+    };
+  }
+
+  const handleResize = debounce(() => {
+    // Rebuild points and re-render stacks/bars so sizes/percent offsets update
+    layoutPoints(); // Keep calling this to update 2D layout just in case
+    renderAll(); // Use the main render function which syncs 3D
+  }, 140);
+
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', () => {
+    // orientationchange may fire before layout stabilizes; schedule a short delay
+    setTimeout(handleResize, 80);
+  });
+
+
+  // Board layout
+  layoutPoints();
+  state = createInitialState();
+  beginTurn(P.WHITE);
 })();

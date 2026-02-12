@@ -1338,7 +1338,40 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       }
       return;
     }
+ if (isMultiplayer && state.turn === P.BLACK) {
+      if (!anyLegalMove(state, P.BLACK, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.WHITE;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
 
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+    if (isMultiplayer && state.turn === P.WHITE) {
+      if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.BLACK;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
+
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
     setStatus('Devam et.');
     renderAll();
   }
@@ -1422,6 +1455,23 @@ import { Backgammon3D } from './src/Backgammon3D.js';
         renderAll();
         window.setTimeout(() => {
           state.turn = P.WHITE;
+          state.phase = Phase.NEED_ROLL;
+          setStatus('Sıra sende. Zar at.');
+        }, 450);
+        return;
+      }
+
+      state.phase = Phase.MOVING;
+      setStatus('Rakip hamle yapıyor.');
+      renderAll();
+      return;
+    }
+    if (isMultiplayer && state.turn === P.WHITE) {
+      if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
+        setStatus('Rakip geçerli hamle yok. Sıra sende.');
+        renderAll();
+        window.setTimeout(() => {
+          state.turn = P.BLACK;
           state.phase = Phase.NEED_ROLL;
           setStatus('Sıra sende. Zar at.');
         }, 450);
