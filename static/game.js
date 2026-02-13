@@ -422,7 +422,15 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
   function entryPointFromBar(player, die) {
     // White enters on 24..19 (die 1 => 24), Black enters on 1..6
-    return player === P.WHITE ? 25 - die : die;
+    const entry = player === P.WHITE ? 25 - die : die;
+
+    // DEBUG LOG
+    if (state.bar[player] > 0) {
+      const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+      console.log(`  [ENTRY POINT] ${playerName} için zar=${die} → giriş noktası=${entry}`);
+    }
+
+    return entry;
   }
 
   function destinationFromMove(player, from, die) {
@@ -434,7 +442,18 @@ import { Backgammon3D } from './src/Backgammon3D.js';
     const owner = pointOwner(state.points, dest);
     if (!owner) return false;
     if (owner === player) return false;
-    return absPointCount(state.points, dest) >= 2;
+
+    const blocked = absPointCount(state.points, dest) >= 2;
+
+    // DEBUG LOG - sadece bar'dan giriş durumunda
+    if (state.bar[player] > 0) {
+      const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+      const ownerName = owner === P.WHITE ? 'WHITE' : 'BLACK';
+      const checkerCount = absPointCount(state.points, dest);
+      console.log(`    [POINT CHECK] Nokta ${dest}: ${ownerName} ${checkerCount} taş ${blocked ? '🔒 DOLU' : '✓ BOŞS'}`);
+    }
+
+    return blocked;
   }
 
   function canBearOffFrom(player, state, from, die) {
@@ -530,20 +549,60 @@ import { Backgammon3D } from './src/Backgammon3D.js';
     // FIX: Use generateMoveSequences to properly handle bar re-entry with multiple checkers
     // This correctly tries all permutations instead of just checking each die independently
     const seqs = generateMoveSequences(state, player, dice);
-    return seqs.length > 0;
+
+    // DEBUG LOG
+    const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+    const barCount = state.bar[player];
+    const hasValidMoves = seqs.length > 0;
+
+    if (barCount > 0) {
+      console.group(`[BAR RE-ENTRY CHECK] ${playerName}`);
+      console.log(`📍 Bar'da ${barCount} taş var`);
+      console.log(`🎲 Zarlar:`, dice);
+      console.log(`✅ Geçerli hamle sequenceleri:`, seqs.length);
+
+      if (seqs.length > 0) {
+        console.log(`📊 Bulunmuş hamle kombinasyonları:`);
+        seqs.forEach((seq, idx) => {
+          console.log(`  [${idx}] ${seq.seq.length} hamle: ${seq.seq.map(m => `${m.from}→${m.to}(${m.die})`).join(', ')}`);
+        });
+        console.log(`✨ SONUÇ: Hamle VAR ✓ Oyun devam edecek`);
+      } else {
+        console.log(`❌ SONUÇ: Hamle YOK ✗ Sıra rakibe geçecek`);
+      }
+      console.groupEnd();
+    }
+
+    return hasValidMoves;
   }
 
   function generateMoveSequences(state, player, dice) {
     // Returns sequences maximizing number of used dice (standard rule: if only one die can be played, must play the higher)
     const results = [];
+    const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+    const barCount = state.bar[player];
 
-    function rec(currState, remainingDice, seq) {
+    function rec(currState, remainingDice, seq, depth = 0) {
       let progressed = false;
+      const indent = '  '.repeat(depth);
 
       // Try each distinct die choice (order matters in backgammon)
       for (let i = 0; i < remainingDice.length; i++) {
         const die = remainingDice[i];
         const moves = enumerateSingleMoves(currState, player, die);
+
+        // DEBUG: Log each die attempt when bar is involved
+        if (barCount > 0 && depth === 0) {
+          console.log(`${indent}  → Zar ${die} deneniyor: ${moves.length} hamle bulundu`);
+          if (moves.length > 0) {
+            moves.forEach(m => {
+              console.log(`${indent}    ✓ Bar'dan ${m.to} noktasına giriş mümkün`);
+            });
+          } else {
+            console.log(`${indent}    ✗ Zar ${die}: Giriş noktası dolu veya geçersiz`);
+          }
+        }
+
         if (moves.length === 0) continue;
 
         progressed = true;
@@ -556,7 +615,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
           applyMoveInPlace(next, player, m);
           const nextDice = remainingDice.slice();
           nextDice.splice(i, 1);
-          rec(next, nextDice, seq.concat([m]));
+          rec(next, nextDice, seq.concat([m]), depth + 1);
         }
       }
 
@@ -565,7 +624,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       }
     }
 
-    rec({ points: state.points.slice(), bar: { ...state.bar }, off: { ...state.off } }, dice.slice(), []);
+    rec({ points: state.points.slice(), bar: { ...state.bar }, off: { ...state.off } }, dice.slice(), [], 0);
 
     if (results.length === 0) return [];
 
