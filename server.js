@@ -405,8 +405,18 @@ function makeMove(clientId, move) {
     room.phase = 'GAME_OVER';
   }
 
-  // If no available dice left, switch turn
-  if (room.availableDice.length === 0 && room.phase !== 'GAME_OVER') {
+  // Check if player can make any move with remaining dice
+  let canMove = false;
+  for (const die of room.availableDice) {
+    const moves = enumerateSingleMoves(room, player, die);
+    if (moves.length > 0) {
+      canMove = true;
+      break;
+    }
+  }
+
+  // If no dice left OR no legal moves possible, switch turn
+  if ((room.availableDice.length === 0 || !canMove) && room.phase !== 'GAME_OVER') {
     room.turn = opponent(player);
     room.phase = 'NEED_ROLL';
     room.dice = [];

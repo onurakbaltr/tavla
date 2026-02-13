@@ -1672,10 +1672,8 @@ import { Backgammon3D } from './src/Backgammon3D.js';
             applyMoveFromPeer(msg.move, msg.player || (playerColor === 'W' ? 'B' : 'W'));
           }
           renderAll();
-          setStatus('Rakip hamle yaptı');
-          
-          // Check if current player can make any moves, or if turn should pass
-          afterHumanMove();
+          // Not: Sunucu zaten doğru turn'u gameState içinde gönderiyor.
+          // Client tarafında extra turn kontrolü YAPMA, yoksa sıra karışır!
         }
         break;
 
