@@ -1650,9 +1650,20 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
           console.log(`[DICE ROLLED FINAL] Zarlar: ${state.dice ? state.dice.join(',') : 'BOŞŞ!'} | Available: ${state.availableDice ? state.availableDice.join(',') : 'BOŞŞ!'} | Turn: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase: ${state.phase}`);
 
-          // Check if turn player has legal moves
-          if (!anyLegalMove(state, state.turn, state.availableDice)) {
-            console.log(`[TURN END AUTO] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hamle yapamıyor, sıra değişiyor`);
+          // FIX: Check each die individually - if ANY die can be played, player has moves
+          let hasAnyMove = false;
+          for (const die of state.availableDice) {
+            const moves = enumerateSingleMoves(state, state.turn, die);
+            if (moves.length > 0) {
+              hasAnyMove = true;
+              break;
+            }
+          }
+
+          console.log(`[DICE CHECK] Each die check: hasAnyMove=${hasAnyMove}`);
+
+          if (!hasAnyMove) {
+            console.log(`[TURN END AUTO] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hiçbir zarla hamle yapamıyor, sıra değişiyor`);
             state.turn = opponent(state.turn);
             state.phase = Phase.NEED_ROLL;
             setStatus(`Geçerli hamle yok. ${state.turn === playerColor ? 'Senin sıran.' : 'Rakip sırası'}`);
