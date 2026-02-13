@@ -1634,7 +1634,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
         console.log(`[DICE ROLLED] BEFORE - state.dice=${JSON.stringify(state.dice)} | state.phase=${state.phase}`);
 
         if (msg.gameState) {
-          console.log(`[GAMESTATE CHECK] msg.gameState.dice=${JSON.stringify(msg.gameState.dice)} | msg.gameState.phase=${msg.gameState.phase}`);
+          console.log(`[GAMESTATE CHECK] msg.gameState.dice=${JSON.stringify(msg.gameState.dice)} | msg.gameState.turn=${msg.gameState.turn}`);
 
           state = msg.gameState;
           state.legalTargets = new Map();
@@ -1650,27 +1650,14 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
           console.log(`[DICE ROLLED FINAL] Zarlar: ${state.dice ? state.dice.join(',') : 'BOŞŞ!'} | Available: ${state.availableDice ? state.availableDice.join(',') : 'BOŞŞ!'} | Turn: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase: ${state.phase}`);
 
-          // FIX: Check each die individually - if ANY die can be played, player has moves
-          let hasAnyMove = false;
-          for (const die of state.availableDice) {
-            const moves = enumerateSingleMoves(state, state.turn, die);
-            if (moves.length > 0) {
-              hasAnyMove = true;
-              break;
-            }
-          }
+          // IMPORTANT: Server'dan gelen turn'ü doğrudan kullan!
+          // Eğer server hamle olmadığı için sırayı değiştirmişse, biz tekrar değiştirmeyelim!
+          console.log(`[SERVER TURN] Turn=${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase=${state.phase}`);
 
-          console.log(`[DICE CHECK] Each die check: hasAnyMove=${hasAnyMove}`);
-
-          if (!hasAnyMove) {
-            console.log(`[TURN END AUTO] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hiçbir zarla hamle yapamıyor, sıra değişiyor`);
-            state.turn = opponent(state.turn);
-            state.phase = Phase.NEED_ROLL;
-            setStatus(`Geçerli hamle yok. ${state.turn === playerColor ? 'Senin sıran.' : 'Rakip sırası'}`);
-          } else {
-            state.phase = Phase.MOVING;
-            setStatus(`Zar atıldı: ${state.dice.join(', ')}. ${state.turn === playerColor ? 'Hamlen.' : 'Rakip hamle yapıyor.'}`);
-          }
+          // Phase ayrıntıları:
+          // - Server zar atıp hamle varsa: phase=MOVING, turn=current player
+          // - Server zar atıp hamle yoksa: phase=NEED_ROLL, turn=opponent
+          // Biz client'ta EXTRA işlem yapmayacağız, server'a güven!
         }
         renderAll();
         break;
