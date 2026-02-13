@@ -422,15 +422,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
   function entryPointFromBar(player, die) {
     // White enters on 24..19 (die 1 => 24), Black enters on 1..6
-    const entry = player === P.WHITE ? 25 - die : die;
-
-    // DEBUG LOG
-    if (state.bar[player] > 0) {
-      const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
-      console.log(`  [ENTRY POINT] ${playerName} için zar=${die} → giriş noktası=${entry}`);
-    }
-
-    return entry;
+    return player === P.WHITE ? 25 - die : die;
   }
 
   function destinationFromMove(player, from, die) {
@@ -442,18 +434,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
     const owner = pointOwner(state.points, dest);
     if (!owner) return false;
     if (owner === player) return false;
-
-    const blocked = absPointCount(state.points, dest) >= 2;
-
-    // DEBUG LOG - sadece bar'dan giriş durumunda
-    if (state.bar[player] > 0) {
-      const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
-      const ownerName = owner === P.WHITE ? 'WHITE' : 'BLACK';
-      const checkerCount = absPointCount(state.points, dest);
-      console.log(`    [POINT CHECK] Nokta ${dest}: ${ownerName} ${checkerCount} taş ${blocked ? '🔒 DOLU' : '✓ BOŞS'}`);
-    }
-
-    return blocked;
+    return absPointCount(state.points, dest) >= 2;
   }
 
   function canBearOffFrom(player, state, from, die) {
@@ -550,59 +531,28 @@ import { Backgammon3D } from './src/Backgammon3D.js';
     // This correctly tries all permutations instead of just checking each die independently
     const seqs = generateMoveSequences(state, player, dice);
 
-    // DEBUG LOG
-    const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+    // DEBUG LOG - sadece bar'da 2+ taş varsa
     const barCount = state.bar[player];
-    const hasValidMoves = seqs.length > 0;
-
-    if (barCount > 0) {
-      console.group(`[BAR RE-ENTRY CHECK] ${playerName}`);
-      console.log(`📍 Bar'da ${barCount} taş var`);
-      console.log(`🎲 Zarlar:`, dice);
-      console.log(`✅ Geçerli hamle sequenceleri:`, seqs.length);
-
-      if (seqs.length > 0) {
-        console.log(`📊 Bulunmuş hamle kombinasyonları:`);
-        seqs.forEach((seq, idx) => {
-          console.log(`  [${idx}] ${seq.seq.length} hamle: ${seq.seq.map(m => `${m.from}→${m.to}(${m.die})`).join(', ')}`);
-        });
-        console.log(`✨ SONUÇ: Hamle VAR ✓ Oyun devam edecek`);
-      } else {
-        console.log(`❌ SONUÇ: Hamle YOK ✗ Sıra rakibe geçecek`);
-      }
-      console.groupEnd();
+    if (barCount >= 2) {
+      const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
+      const hasValidMoves = seqs.length > 0;
+      console.log(`[MOVE CHECK] ${playerName} Bar:${barCount} Dice:${dice.join(',')} → ${hasValidMoves ? '✓ HAM LE VAR' : '✗ HAMLE YOK'}`);
     }
 
-    return hasValidMoves;
+    return seqs.length > 0;
   }
 
   function generateMoveSequences(state, player, dice) {
     // Returns sequences maximizing number of used dice (standard rule: if only one die can be played, must play the higher)
     const results = [];
-    const playerName = player === P.WHITE ? 'WHITE' : 'BLACK';
-    const barCount = state.bar[player];
 
-    function rec(currState, remainingDice, seq, depth = 0) {
+    function rec(currState, remainingDice, seq) {
       let progressed = false;
-      const indent = '  '.repeat(depth);
 
       // Try each distinct die choice (order matters in backgammon)
       for (let i = 0; i < remainingDice.length; i++) {
         const die = remainingDice[i];
         const moves = enumerateSingleMoves(currState, player, die);
-
-        // DEBUG: Log each die attempt when bar is involved
-        if (barCount > 0 && depth === 0) {
-          console.log(`${indent}  → Zar ${die} deneniyor: ${moves.length} hamle bulundu`);
-          if (moves.length > 0) {
-            moves.forEach(m => {
-              console.log(`${indent}    ✓ Bar'dan ${m.to} noktasına giriş mümkün`);
-            });
-          } else {
-            console.log(`${indent}    ✗ Zar ${die}: Giriş noktası dolu veya geçersiz`);
-          }
-        }
-
         if (moves.length === 0) continue;
 
         progressed = true;
@@ -615,7 +565,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
           applyMoveInPlace(next, player, m);
           const nextDice = remainingDice.slice();
           nextDice.splice(i, 1);
-          rec(next, nextDice, seq.concat([m]), depth + 1);
+          rec(next, nextDice, seq.concat([m]));
         }
       }
 
@@ -624,7 +574,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       }
     }
 
-    rec({ points: state.points.slice(), bar: { ...state.bar }, off: { ...state.off } }, dice.slice(), [], 0);
+    rec({ points: state.points.slice(), bar: { ...state.bar }, off: { ...state.off } }, dice.slice(), []);
 
     if (results.length === 0) return [];
 
@@ -1378,12 +1328,16 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
     // Turn ends if no dice are left, OR no legal moves are possible with the remaining dice.
     if (state.availableDice.length === 0 || !anyLegalMove(state, state.turn, state.availableDice)) {
+      console.log(`[TURN END] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hamle yapamıyor, sıra rakibe geçiyor`);
+
       if (isMultiplayer) {
         // End of current player's turn, switch to opponent.
         state.turn = opponent(state.turn);
+        console.log(`[MULTIPLAYER] Sıra şimdi: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'}`);
         beginTurn(state.turn);
       } else {
         // In single player, switch to AI.
+        console.log(`[SINGLE PLAYER] AI'ya geçiliyor`);
         endTurnToAI();
       }
       return; // Crucial: exit after handling turn end.
@@ -1391,6 +1345,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
 
     // If we reach here, it means the current player's turn continues.
     // Set status and re-render to allow for the next move.
+    console.log(`[TURN CONTINUE] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hamle yapmaya devam edebilir`);
     setStatus('Devam et.'); // "Continue."
     renderAll();
   }
@@ -1435,6 +1390,7 @@ import { Backgammon3D } from './src/Backgammon3D.js';
         setStatus('Sunucuya bağlı değil');
         return;
       }
+      console.log(`[MULTIPLAYER ROLL] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} zar atma isteği gönderiliyor`);
       sendRollRequest();
       setStatus('Zar isteniyor...');
       return;
@@ -1673,9 +1629,20 @@ import { Backgammon3D } from './src/Backgammon3D.js';
         if (msg.gameState) {
           state = msg.gameState;
           state.legalTargets = new Map();
+          console.log(`[DICE ROLLED] Zarlar: ${state.dice.join(',')} | Turn: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase: ${state.phase} | HasLegalMoves: ${anyLegalMove(state, state.turn, state.availableDice)}`);
+
+          // Check if turn player has legal moves
+          if (!anyLegalMove(state, state.turn, state.availableDice)) {
+            console.log(`[TURN END AUTO] ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} hamle yapamıyor, sıra değişiyor`);
+            state.turn = opponent(state.turn);
+            state.phase = Phase.NEED_ROLL;
+            setStatus(`Geçerli hamle yok. ${state.turn === playerColor ? 'Senin sıran.' : 'Rakip sırası'}`);
+          } else {
+            state.phase = Phase.MOVING;
+            setStatus(`Zar atıldı: ${state.dice.join(', ')}. ${state.turn === playerColor ? 'Hamlen.' : 'Rakip hamle yapıyor.'}`);
+          }
         }
         renderAll();
-        setStatus('Zar atıldı: ' + (state.dice ? state.dice.join(', ') : ''));
         break;
 
       case 'MOVE_MADE':

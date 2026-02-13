@@ -73,13 +73,15 @@ export class Backgammon3D {
         this.scene.background = new THREE.Color(0x0d0d0d);
         this.scene.fog = new THREE.FogExp2(0x0d0d0d, 0.012);
 
-        // ─── Camera (Top-Down View) ───
+        // ─── Camera (Orthographic Top-Down View) ───
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        this.camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 500);
-        // Kamerayı tam merkezin üstüne (Y ekseni) yerleştiriyoruz
-        this.camera.position.set(0, 55, 0); 
+        const aspect = width / height;
+        const frustumSize = 38; // Controls the "zoom" level
+        this.camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 0.1, 500);
+        this.camera.position.set(0, 55, 0); // Position it high above
         this.camera.lookAt(0, 0, 0);
+        this.scene.add(this.camera);
 
         // ─── Renderer ───
         this.renderer = new THREE.WebGLRenderer({
@@ -101,12 +103,9 @@ export class Backgammon3D {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.06;
-        // Kamerayı tam üstte tutmak için rotasyonu kısıtlıyoruz
-        this.controls.enableRotate = false; 
-        this.controls.minDistance = 20;
-        this.controls.maxDistance = 100;
+        this.controls.enableRotate = false; // Disallow rotation
+        this.controls.enablePan = false; // Disallow panning
         this.controls.target.set(0, 0, 0);
-        this.controls.enablePan = false;
 
         // ─── Setup ───
         this.setupLighting();
@@ -430,14 +429,16 @@ export class Backgammon3D {
         if (!this.container) return;
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
+        const aspect = width / height;
+        
+        const frustumSize = 38;
+        this.camera.left = frustumSize * aspect / -2;
+        this.camera.right = frustumSize * aspect / 2;
+        this.camera.top = frustumSize / 2;
+        this.camera.bottom = frustumSize / -2;
 
-        this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
-        
-        // Yeniden boyutlandırmada yüksekliği koru
-        this.camera.position.set(0, 55, 0);
-        this.camera.lookAt(0, 0, 0);
     }
 
     onPointerDown(event) {
