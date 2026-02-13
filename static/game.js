@@ -1317,50 +1317,22 @@ import { Backgammon3D } from './src/Backgammon3D.js';
       return;
     }
 
+    // Turn ends if no dice are left, OR no legal moves are possible with the remaining dice.
     if (state.availableDice.length === 0 || !anyLegalMove(state, state.turn, state.availableDice)) {
       if (isMultiplayer) {
+        // End of current player's turn, switch to opponent.
         state.turn = opponent(state.turn);
         beginTurn(state.turn);
       } else {
+        // In single player, switch to AI.
         endTurnToAI();
       }
-      return;
+      return; // Crucial: exit after handling turn end.
     }
- if (isMultiplayer && state.turn === P.BLACK) {
-      if (!anyLegalMove(state, P.BLACK, state.availableDice)) {
-        setStatus('Rakip geçerli hamle yok. Sıra sende.');
-        renderAll();
-        window.setTimeout(() => {
-          state.turn = P.WHITE;
-          state.phase = Phase.NEED_ROLL;
-          setStatus('Sıra sende. Zar at.');
-        }, 450);
-        return;
-      }
 
-      state.phase = Phase.MOVING;
-      setStatus('Rakip hamle yapıyor.');
-      renderAll();
-      return;
-    }
-    if (isMultiplayer && state.turn === P.WHITE) {
-      if (!anyLegalMove(state, P.WHITE, state.availableDice)) {
-        setStatus('Rakip geçerli hamle yok. Sıra sende.');
-        renderAll();
-        window.setTimeout(() => {
-          state.turn = P.BLACK;
-          state.phase = Phase.NEED_ROLL;
-          setStatus('Sıra sende. Zar at.');
-        }, 450);
-        return;
-      }
-
-      state.phase = Phase.MOVING;
-      setStatus('Rakip hamle yapıyor.');
-      renderAll();
-      return;
-    }
-    setStatus('Devam et.');
+    // If we reach here, it means the current player's turn continues.
+    // Set status and re-render to allow for the next move.
+    setStatus('Devam et.'); // "Continue."
     renderAll();
   }
 
