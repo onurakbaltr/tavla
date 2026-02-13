@@ -527,10 +527,10 @@ import { Backgammon3D } from './src/Backgammon3D.js';
   }
 
   function anyLegalMove(state, player, dice) {
-    for (const d of dice) {
-      if (enumerateSingleMoves(state, player, d).length > 0) return true;
-    }
-    return false;
+    // FIX: Use generateMoveSequences to properly handle bar re-entry with multiple checkers
+    // This correctly tries all permutations instead of just checking each die independently
+    const seqs = generateMoveSequences(state, player, dice);
+    return seqs.length > 0;
   }
 
   function generateMoveSequences(state, player, dice) {
