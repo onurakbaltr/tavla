@@ -1593,6 +1593,11 @@ import { Backgammon3D } from './src/Backgammon3D.js';
   }
 
   function handleServerMessage(msg) {
+    // DEBUG: Log all incoming messages
+    if (msg.type === 'DICE_ROLLED' || msg.type === 'MOVE_MADE') {
+      console.log(`[SERVER MSG] Type: ${msg.type}`, msg);
+    }
+
     switch (msg.type) {
       case 'ROOM_CREATED':
         roomCode = msg.roomCode;
@@ -1626,10 +1631,24 @@ import { Backgammon3D } from './src/Backgammon3D.js';
         break;
 
       case 'DICE_ROLLED':
+        console.log(`[DICE ROLLED] BEFORE - state.dice=${JSON.stringify(state.dice)} | state.phase=${state.phase}`);
+
         if (msg.gameState) {
+          console.log(`[GAMESTATE CHECK] msg.gameState.dice=${JSON.stringify(msg.gameState.dice)} | msg.gameState.phase=${msg.gameState.phase}`);
+
           state = msg.gameState;
           state.legalTargets = new Map();
-          console.log(`[DICE ROLLED] Zarlar: ${state.dice.join(',')} | Turn: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase: ${state.phase} | HasLegalMoves: ${anyLegalMove(state, state.turn, state.availableDice)}`);
+
+          console.log(`[GAMESTATE AFTER] state.dice=${JSON.stringify(state.dice)} | state.phase=${state.phase} | state.turn=${state.turn}`);
+
+          // If server didn't send dice/availableDice, use msg fields
+          if (msg.dice && (!state.dice || state.dice.length === 0)) {
+            state.dice = msg.dice;
+            state.availableDice = msg.availableDice || expandDice(msg.dice);
+            console.log(`[DICE ROLLED FIX] msg'den dice alındı: ${state.dice.join(',')}`);
+          }
+
+          console.log(`[DICE ROLLED FINAL] Zarlar: ${state.dice ? state.dice.join(',') : 'BOŞŞ!'} | Available: ${state.availableDice ? state.availableDice.join(',') : 'BOŞŞ!'} | Turn: ${state.turn === P.WHITE ? 'WHITE' : 'BLACK'} | Phase: ${state.phase}`);
 
           // Check if turn player has legal moves
           if (!anyLegalMove(state, state.turn, state.availableDice)) {
