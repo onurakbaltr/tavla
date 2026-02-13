@@ -1673,6 +1673,9 @@ import { Backgammon3D } from './src/Backgammon3D.js';
           }
           renderAll();
           setStatus('Rakip hamle yaptı');
+          
+          // Check if current player can make any moves, or if turn should pass
+          afterHumanMove();
         }
         break;
 
